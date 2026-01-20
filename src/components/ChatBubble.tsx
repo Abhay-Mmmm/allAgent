@@ -6,6 +6,17 @@ interface ChatBubbleProps {
   message: Message;
 }
 
+// Simple markdown parser for bold text
+const renderMarkdown = (text: string) => {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+};
+
 export const ChatBubble = ({ message }: ChatBubbleProps) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -32,16 +43,16 @@ export const ChatBubble = ({ message }: ChatBubbleProps) => {
       <div
         className={`
           max-w-[85%] px-4 py-3 
-          ${message.isUser 
-            ? 'gradient-card text-primary-foreground rounded-2xl rounded-br-md' 
+          ${message.isUser
+            ? 'gradient-card text-primary-foreground rounded-2xl rounded-br-md'
             : 'bg-card text-card-foreground rounded-2xl rounded-bl-md shadow-soft border border-border'
           }
         `}
       >
         <p className="text-accessible-base leading-relaxed whitespace-pre-wrap break-words">
-          {message.text}
+          {renderMarkdown(message.text)}
         </p>
-        
+
         {/* Audio playback button for AI messages with audio */}
         {!message.isUser && message.audioUrl && (
           <>
@@ -56,8 +67,8 @@ export const ChatBubble = ({ message }: ChatBubbleProps) => {
               className={`
                 mt-3 flex items-center gap-2 px-3 py-2 rounded-xl
                 text-sm font-medium transition-all
-                ${isPlaying 
-                  ? 'bg-accent/20 text-accent' 
+                ${isPlaying
+                  ? 'bg-accent/20 text-accent'
                   : 'bg-secondary text-secondary-foreground hover:bg-accent/10'
                 }
               `}

@@ -23,3 +23,6 @@ export interface ChatApiResponse {
   reply_text: string;
   reply_audio_url: string | null;
 }
+
+export type AppMode = 'web' | 'mobile';
+export type CallStatus = 'idle' | 'connecting' | 'active' | 'ended';

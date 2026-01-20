@@ -1,53 +1,5 @@
-import { useState, useCallback, useRef } from 'react';
-
-// Type declarations for Web Speech API
-interface SpeechRecognitionEvent extends Event {
-  resultIndex: number;
-  results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionResultList {
-  length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionResult {
-  isFinal: boolean;
-  length: number;
-  item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
-}
-
-interface SpeechRecognitionAlternative {
-  transcript: string;
-  confidence: number;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-  message: string;
-}
-
-interface ISpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onstart: ((this: ISpeechRecognition, ev: Event) => void) | null;
-  onresult: ((this: ISpeechRecognition, ev: SpeechRecognitionEvent) => void) | null;
-  onerror: ((this: ISpeechRecognition, ev: SpeechRecognitionErrorEvent) => void) | null;
-  onend: ((this: ISpeechRecognition, ev: Event) => void) | null;
-  start(): void;
-  stop(): void;
-  abort(): void;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: new () => ISpeechRecognition;
-    webkitSpeechRecognition: new () => ISpeechRecognition;
-  }
-}
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { transcribeAudio } from '@/lib/groq';
 
 interface UseVoiceInputReturn {
   isListening: boolean;
@@ -61,57 +13,145 @@ interface UseVoiceInputReturn {
 export const useVoiceInput = (): UseVoiceInputReturn => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const recognitionRef = useRef<ISpeechRecognition | null>(null);
 
-  // Check if Web Speech API is supported
-  const isSupported = typeof window !== 'undefined' && 
-    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  const startListening = useCallback(() => {
-    if (!isSupported) return;
+  // VAD Parameters
+  const SILENCE_THRESHOLD = 0.02; // Adjust based on microphone sensitivity
+  const SILENCE_DURATION = 1500; // 1.5 seconds of silence to stop
+  const MIN_RECORDING_DURATION = 500; // Minimum 0.5s to consider valid speech
 
-    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognitionClass();
-    
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = 'en-IN'; // Support Indian English, works for Hindi too
-    
-    recognition.onstart = () => {
-      setIsListening(true);
-      setTranscript('');
-    };
+  const isSupported = typeof window !== 'undefined' &&
+    !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        }
-      }
-      if (finalTranscript) {
-        setTranscript(finalTranscript);
-      }
-    };
-
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error('Speech recognition error:', event.error);
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-  }, [isSupported]);
-
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
       setIsListening(false);
     }
+  }, []);
+
+  const processAudio = useCallback(async (audioBlob: Blob) => {
+    if (audioBlob.size < 1000) return; // Ignore empty/tiny recordings
+
+    try {
+      const text = await transcribeAudio(audioBlob);
+      if (text && text.trim().length > 0) {
+        setTranscript(text);
+      }
+    } catch (error) {
+      console.error("Transcription failed:", error);
+    }
+  }, []);
+
+  const startListening = useCallback(async () => {
+    if (!isSupported) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      // Setup Audio Context for VAD
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioContext = new AudioContextClass();
+      const analyser = audioContext.createAnalyser();
+      const source = audioContext.createMediaStreamSource(stream);
+
+      analyser.fftSize = 256;
+      source.connect(analyser);
+
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      sourceRef.current = source;
+
+      // Setup MediaRecorder
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        processAudio(audioBlob);
+
+        // Cleanup streams
+        stream.getTracks().forEach(track => track.stop());
+        if (audioContext.state !== 'closed') {
+          audioContext.close();
+        }
+      };
+
+      mediaRecorder.start();
+      setIsListening(true);
+      setTranscript('');
+
+      // VAD Logic Loop
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      let speechStarted = false;
+      let startTime = Date.now();
+
+      const checkVolume = () => {
+        if (!analyserRef.current || mediaRecorder.state === 'inactive') return;
+
+        analyserRef.current.getByteFrequencyData(dataArray);
+
+        // Calculate average volume
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        const normalizedVolume = average / 255;
+
+        if (normalizedVolume > SILENCE_THRESHOLD) {
+          // Speech detected
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+          }
+          speechStarted = true;
+        } else if (speechStarted && (Date.now() - startTime > MIN_RECORDING_DURATION)) {
+          // Silence detected after speech
+          if (!silenceTimerRef.current) {
+            silenceTimerRef.current = setTimeout(() => {
+              stopRecording();
+            }, SILENCE_DURATION);
+          }
+        }
+
+        requestAnimationFrame(checkVolume);
+      };
+
+      checkVolume();
+
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      setIsListening(false);
+    }
+  }, [isSupported, stopRecording, processAudio]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
   }, []);
 
   const resetTranscript = useCallback(() => {
@@ -123,7 +163,7 @@ export const useVoiceInput = (): UseVoiceInputReturn => {
     isSupported,
     transcript,
     startListening,
-    stopListening,
+    stopListening: stopRecording,
     resetTranscript,
   };
 };

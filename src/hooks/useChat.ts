@@ -2,35 +2,27 @@ import { useState, useCallback } from 'react';
 import { Message, Language, ChatApiResponse } from '@/types/chat';
 import { getTranslation } from '@/lib/translations';
 
-// Simulated API call - replace with real endpoint in production
-const sendChatMessage = async (message: string, language: Language): Promise<ChatApiResponse> => {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
-  
-  // Simulated responses for demo
-  const responses: Record<Language, string[]> = {
-    en: [
-      "I can help you with crop insurance information. What would you like to know?",
-      "The Pradhan Mantri Fasal Bima Yojana covers losses due to natural calamities, pests, and diseases.",
-      "To enroll, you'll need your Aadhaar card, land records, and bank details. Visit your nearest bank or CSC.",
-      "Premium rates vary by crop. For rice, it's typically 2% of the sum insured.",
-      "Claims are usually settled within 2 months of crop cutting experiments.",
-    ],
-    hi: [
-      "मैं आपको फसल बीमा की जानकारी में मदद कर सकता हूं। आप क्या जानना चाहेंगे?",
-      "प्रधानमंत्री फसल बीमा योजना प्राकृतिक आपदाओं, कीटों और बीमारियों से होने वाले नुकसान को कवर करती है।",
-      "नामांकन के लिए आपको आधार कार्ड, भूमि रिकॉर्ड और बैंक विवरण की आवश्यकता होगी।",
-      "प्रीमियम दरें फसल के अनुसार अलग-अलग होती हैं। चावल के लिए यह बीमित राशि का 2% है।",
-      "दावों का निपटान आमतौर पर फसल कटाई प्रयोगों के 2 महीने के भीतर होता है।",
-    ],
-  };
-  
-  const langResponses = responses[language];
-  const randomResponse = langResponses[Math.floor(Math.random() * langResponses.length)];
-  
+import { getChatCompletion, SYSTEM_PROMPTS } from '@/lib/groq';
+
+// Real Groq API call
+const sendChatMessage = async (message: string, language: Language, history: Message[] = []): Promise<ChatApiResponse> => {
+  // Format history for API
+  const apiMessages = history.map(msg => ({
+    role: msg.isUser ? "user" : "assistant",
+    content: msg.text
+  } as const));
+
+  // Add current message
+  apiMessages.push({ role: "user", content: message });
+
+  const systemPrompt = SYSTEM_PROMPTS.INSURANCE_AGENT +
+    (language === 'hi' ? ' Reply in Hindi.' : ' Reply in English.');
+
+  const responseText = await getChatCompletion(apiMessages, systemPrompt);
+
   return {
-    reply_text: randomResponse,
-    reply_audio_url: null, // Would be a real audio URL in production
+    reply_text: responseText,
+    reply_audio_url: null,
   };
 };
 
@@ -59,7 +51,7 @@ export const useChat = (language: Language) => {
     setIsLoading(true);
 
     try {
-      const response = await sendChatMessage(text, language);
+      const response = await sendChatMessage(text, language, messages);
       addMessage(response.reply_text, false, response.reply_audio_url || undefined);
     } catch (err) {
       const errorKey = !navigator.onLine ? 'networkError' : 'errorMessage';

@@ -212,6 +212,48 @@
   .card-shadow-lg {
     box-shadow: 0 8px 30px -6px rgba(0, 0, 0, 0.12), 0 4px 12px -4px rgba(0, 0, 0, 0.06);
   }
+
+  /* Waveform animation for voice calls */
+  .animate-waveform {
+    animation: waveform 1s ease-in-out infinite;
+  }
+
+  .animate-waveform-speaking {
+    animation: waveformSpeaking 0.8s ease-in-out infinite;
+  }
+
+  @keyframes waveform {
+    0%, 100% {
+      height: 1rem;
+    }
+    50% {
+      height: 4rem;
+    }
+  }
+
+  @keyframes waveformSpeaking {
+    0%, 100% {
+      height: 1.5rem;
+    }
+    25% {
+      height: 5rem;
+    }
+    50% {
+      height: 3rem;
+    }
+    75% {
+      height: 6rem;
+    }
+  }
+
+  /* Soft shadows utility */
+  .shadow-soft {
+    box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.1);
+  }
+
+  .shadow-soft-lg {
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.15);
+  }
 }
 
 /* Accessibility: Reduce motion for those who prefer it */

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Language } from '@/types/chat';
+import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '@/context/LanguageContext';
 import { useChat } from '@/hooks/useChat';
 import { ChatHeader } from '@/components/ChatHeader';
 import { ChatBubble } from '@/components/ChatBubble';
@@ -7,12 +8,9 @@ import { ChatInput } from '@/components/ChatInput';
 import { TypingIndicator } from '@/components/TypingIndicator';
 import { ErrorMessage } from '@/components/ErrorMessage';
 
-interface ChatPageProps {
-  language: Language;
-  onBack: () => void;
-}
-
-export const ChatPage = ({ language, onBack }: ChatPageProps) => {
+export const ChatPage = () => {
+  const { language } = useLanguage();
+  const navigate = useNavigate();
   const { messages, isLoading, error, sendMessage, clearChat, initializeChat } = useChat(language);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -31,11 +29,15 @@ export const ChatPage = ({ language, onBack }: ChatPageProps) => {
     initializeChat();
   };
 
+  const handleBack = () => {
+    navigate('/mobile');
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
-      <ChatHeader 
+      <ChatHeader
         language={language}
-        onBack={onBack}
+        onBack={handleBack}
         onNewChat={handleNewChat}
       />
 
@@ -45,11 +47,11 @@ export const ChatPage = ({ language, onBack }: ChatPageProps) => {
           {messages.map((message) => (
             <ChatBubble key={message.id} message={message} />
           ))}
-          
+
           {isLoading && <TypingIndicator />}
-          
+
           {error && <ErrorMessage message={error} />}
-          
+
           {/* Scroll anchor */}
           <div ref={messagesEndRef} />
         </div>
