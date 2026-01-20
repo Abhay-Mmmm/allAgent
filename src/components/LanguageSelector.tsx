@@ -1,5 +1,4 @@
 import { Language } from '@/types/chat';
-import { getTranslation } from '@/lib/translations';
 
 interface LanguageSelectorProps {
   currentLanguage: Language;
@@ -7,38 +6,30 @@ interface LanguageSelectorProps {
 }
 
 export const LanguageSelector = ({ currentLanguage, onLanguageChange }: LanguageSelectorProps) => {
+  const languages: { code: Language; label: string; short: string }[] = [
+    { code: 'en', label: 'English', short: 'EN' },
+    { code: 'hi', label: 'हिन्दी', short: 'हि' },
+  ];
+
   return (
-    <div className="flex gap-3">
-      <button
-        onClick={() => onLanguageChange('en')}
-        className={`
-          flex-1 py-4 px-6 rounded-lg text-accessible-lg font-medium
-          transition-all duration-200 min-h-touch
-          ${currentLanguage === 'en' 
-            ? 'bg-primary text-primary-foreground shadow-md' 
-            : 'bg-card text-card-foreground border-2 border-border hover:border-primary'
-          }
-        `}
-        aria-pressed={currentLanguage === 'en'}
-        aria-label="Select English language"
-      >
-        {getTranslation(currentLanguage, 'english')}
-      </button>
-      <button
-        onClick={() => onLanguageChange('hi')}
-        className={`
-          flex-1 py-4 px-6 rounded-lg text-accessible-lg font-medium
-          transition-all duration-200 min-h-touch
-          ${currentLanguage === 'hi' 
-            ? 'bg-primary text-primary-foreground shadow-md' 
-            : 'bg-card text-card-foreground border-2 border-border hover:border-primary'
-          }
-        `}
-        aria-pressed={currentLanguage === 'hi'}
-        aria-label="Select Hindi language"
-      >
-        {getTranslation(currentLanguage, 'hindi')}
-      </button>
+    <div className="flex bg-secondary rounded-xl p-1 gap-1">
+      {languages.map(({ code, short }) => (
+        <button
+          key={code}
+          onClick={() => onLanguageChange(code)}
+          className={`
+            px-3 py-2 rounded-lg text-sm font-semibold
+            transition-all duration-200
+            ${currentLanguage === code 
+              ? 'bg-card text-foreground shadow-soft' 
+              : 'text-muted-foreground hover:text-foreground'
+            }
+          `}
+          aria-label={`Switch to ${code === 'en' ? 'English' : 'Hindi'}`}
+        >
+          {short}
+        </button>
+      ))}
     </div>
   );
 };

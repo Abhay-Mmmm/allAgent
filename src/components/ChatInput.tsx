@@ -41,7 +41,7 @@ export const ChatInput = ({ onSend, isLoading, language }: ChatInputProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-2 p-3 bg-card border-t border-border">
+    <form onSubmit={handleSubmit} className="sticky bottom-0 flex items-center gap-3 p-4 bg-card border-t border-border">
       {/* Voice input button */}
       <VoiceButton
         isListening={isListening}
@@ -63,15 +63,15 @@ export const ChatInput = ({ onSend, isLoading, language }: ChatInputProps) => {
           }
           disabled={isLoading}
           className={`
-            w-full px-4 py-3 rounded-full
+            w-full px-4 py-3 rounded-2xl
             bg-secondary text-secondary-foreground
             placeholder:text-muted-foreground
             text-accessible-base
             border-2 border-transparent
-            focus:outline-none focus:border-primary
+            focus:outline-none focus:border-primary/30
             disabled:opacity-50
             transition-all duration-200
-            ${isListening ? 'bg-listening/10 border-listening' : ''}
+            ${isListening ? 'bg-accent/10 border-accent/50' : ''}
           `}
           aria-label={getTranslation(language, 'typeMessage')}
         />
@@ -79,9 +79,9 @@ export const ChatInput = ({ onSend, isLoading, language }: ChatInputProps) => {
         {/* Listening indicator inside input */}
         {isListening && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 listening-dots flex gap-1">
-            <span className="w-2 h-2 rounded-full bg-listening"></span>
-            <span className="w-2 h-2 rounded-full bg-listening"></span>
-            <span className="w-2 h-2 rounded-full bg-listening"></span>
+            <span className="w-2 h-2 rounded-full bg-accent"></span>
+            <span className="w-2 h-2 rounded-full bg-accent"></span>
+            <span className="w-2 h-2 rounded-full bg-accent"></span>
           </div>
         )}
       </div>
@@ -92,16 +92,16 @@ export const ChatInput = ({ onSend, isLoading, language }: ChatInputProps) => {
         disabled={!inputValue.trim() || isLoading}
         className={`
           flex items-center justify-center
-          w-14 h-14 rounded-full
-          bg-primary text-primary-foreground
+          w-12 h-12 rounded-2xl
+          gradient-card text-primary-foreground
           disabled:opacity-40 disabled:cursor-not-allowed
-          hover:bg-primary/90 active:scale-95
+          hover:opacity-90 active:scale-95
           transition-all duration-200
-          shadow-md
+          shadow-soft
         `}
         aria-label={getTranslation(language, 'send')}
       >
-        <Send className="w-6 h-6" />
+        <Send className="w-5 h-5" />
       </button>
     </form>
   );

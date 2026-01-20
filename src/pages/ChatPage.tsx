@@ -40,17 +40,19 @@ export const ChatPage = ({ language, onBack }: ChatPageProps) => {
       />
 
       {/* Messages area */}
-      <main className="flex-1 overflow-y-auto px-3 py-4">
-        {messages.map((message) => (
-          <ChatBubble key={message.id} message={message} />
-        ))}
-        
-        {isLoading && <TypingIndicator />}
-        
-        {error && <ErrorMessage message={error} />}
-        
-        {/* Scroll anchor */}
-        <div ref={messagesEndRef} />
+      <main className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="max-w-lg mx-auto">
+          {messages.map((message) => (
+            <ChatBubble key={message.id} message={message} />
+          ))}
+          
+          {isLoading && <TypingIndicator />}
+          
+          {error && <ErrorMessage message={error} />}
+          
+          {/* Scroll anchor */}
+          <div ref={messagesEndRef} />
+        </div>
       </main>
 
       {/* Input area */}
