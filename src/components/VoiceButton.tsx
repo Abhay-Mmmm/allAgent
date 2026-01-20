@@ -10,35 +10,38 @@ interface VoiceButtonProps {
 }
 
 export const VoiceButton = ({ isListening, isSupported, onToggle, language }: VoiceButtonProps) => {
-  if (!isSupported) return null;
+  if (!isSupported) {
+    return (
+      <button
+        disabled
+        className="flex items-center justify-center w-12 h-12 rounded-2xl bg-secondary text-muted-foreground opacity-50 cursor-not-allowed"
+        aria-label="Voice input not supported"
+        title="Voice input not supported in this browser"
+      >
+        <MicOff className="w-5 h-5" />
+      </button>
+    );
+  }
 
   return (
     <button
+      type="button"
       onClick={onToggle}
       className={`
-        relative flex items-center justify-center
-        w-14 h-14 rounded-full transition-all duration-200
+        flex items-center justify-center
+        w-12 h-12 rounded-2xl
+        transition-all duration-200
         ${isListening 
-          ? 'bg-recording text-white recording-pulse shadow-lg shadow-recording/30' 
-          : 'bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground'
+          ? 'bg-accent text-accent-foreground recording-pulse shadow-soft' 
+          : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
         }
       `}
       aria-label={isListening 
-        ? getTranslation(language, 'listening') 
-        : getTranslation(language, 'tapToSpeak')
+        ? getTranslation(language, 'stopRecording') 
+        : getTranslation(language, 'startRecording')
       }
-      aria-pressed={isListening}
     >
-      {isListening ? (
-        <MicOff className="w-6 h-6" />
-      ) : (
-        <Mic className="w-6 h-6" />
-      )}
-      
-      {/* Listening indicator ring */}
-      {isListening && (
-        <span className="absolute inset-0 rounded-full border-4 border-recording/50 animate-ping" />
-      )}
+      <Mic className="w-5 h-5" />
     </button>
   );
 };

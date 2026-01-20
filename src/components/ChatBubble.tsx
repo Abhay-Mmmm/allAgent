@@ -1,5 +1,5 @@
 import { Message } from '@/types/chat';
-import { Volume2 } from 'lucide-react';
+import { Volume2, VolumeX } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 interface ChatBubbleProps {
@@ -31,10 +31,10 @@ export const ChatBubble = ({ message }: ChatBubbleProps) => {
     >
       <div
         className={`
-          max-w-[85%] px-4 py-3 rounded-2xl
+          max-w-[85%] px-4 py-3 
           ${message.isUser 
-            ? 'bg-user-bubble text-user-bubble-foreground rounded-br-md' 
-            : 'bg-ai-bubble text-ai-bubble-foreground rounded-bl-md shadow-sm border border-border'
+            ? 'gradient-card text-primary-foreground rounded-2xl rounded-br-md' 
+            : 'bg-card text-card-foreground rounded-2xl rounded-bl-md shadow-soft border border-border'
           }
         `}
       >
@@ -54,17 +54,21 @@ export const ChatBubble = ({ message }: ChatBubbleProps) => {
             <button
               onClick={handlePlayAudio}
               className={`
-                mt-2 flex items-center gap-2 px-3 py-2 rounded-lg
-                text-accessible-sm font-medium transition-colors
+                mt-3 flex items-center gap-2 px-3 py-2 rounded-xl
+                text-sm font-medium transition-all
                 ${isPlaying 
-                  ? 'bg-primary/20 text-primary' 
-                  : 'bg-secondary text-secondary-foreground hover:bg-primary/10'
+                  ? 'bg-accent/20 text-accent' 
+                  : 'bg-secondary text-secondary-foreground hover:bg-accent/10'
                 }
               `}
               aria-label={isPlaying ? 'Stop audio' : 'Play audio'}
             >
-              <Volume2 className={`w-5 h-5 ${isPlaying ? 'animate-pulse' : ''}`} />
-              {isPlaying ? '🔊' : '▶️'}
+              {isPlaying ? (
+                <VolumeX className="w-4 h-4" />
+              ) : (
+                <Volume2 className="w-4 h-4" />
+              )}
+              {isPlaying ? 'Stop' : 'Listen'}
             </button>
           </>
         )}
