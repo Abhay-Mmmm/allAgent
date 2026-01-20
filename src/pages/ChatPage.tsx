@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { useChat } from '@/hooks/useChat';
 import { ChatHeader } from '@/components/ChatHeader';
@@ -11,13 +11,24 @@ import { ErrorMessage } from '@/components/ErrorMessage';
 export const ChatPage = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
   const { messages, isLoading, error, sendMessage, clearChat, initializeChat } = useChat(language);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialMessageSentRef = useRef(false);
 
-  // Initialize chat with welcome message
+  // Initialize chat or handle incoming scan result
   useEffect(() => {
-    initializeChat();
-  }, [initializeChat]);
+    const state = location.state as { initialMessage?: string } | null;
+
+    if (state?.initialMessage && !initialMessageSentRef.current) {
+      initialMessageSentRef.current = true;
+      sendMessage(state.initialMessage);
+      // Clear state so it doesn't resend on refresh
+      window.history.replaceState({}, document.title);
+    } else if (messages.length === 0 && !state?.initialMessage) {
+      initializeChat();
+    }
+  }, [initializeChat, location.state, messages.length, sendMessage]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createWorker } from 'tesseract.js';
-import { ArrowLeft, Camera, Upload, X, CheckCircle, AlertTriangle, Loader2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Camera, Upload, X, CheckCircle, AlertTriangle, Loader2, RotateCcw, MessageCircle } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { LanguageSelector } from '@/components/LanguageSelector';
 
@@ -316,13 +316,30 @@ export const DocumentScannerPage = () => {
 
                 {/* Reset Button */}
                 {(status === 'success' || status === 'error') && (
-                    <button
-                        onClick={resetScanner}
-                        className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-secondary text-secondary-foreground font-semibold"
-                    >
-                        <RotateCcw className="w-5 h-5" />
-                        {language === 'hi' ? 'फिर से स्कैन करें' : 'Scan Another Document'}
-                    </button>
+                    <div className="space-y-3">
+                        {/* Summarize with AI Button */}
+                        {scanResult && scanResult.extractedText && (
+                            <button
+                                onClick={() => {
+                                    // Navigate to chat with extracted text
+                                    const prompt = `Please summarize this scanned document:\n\n${scanResult.extractedText}`;
+                                    navigate('/mobile/chat', { state: { initialMessage: prompt } });
+                                }}
+                                className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold shadow-lg"
+                            >
+                                <MessageCircle className="w-5 h-5" />
+                                {language === 'hi' ? 'AI से सारांश प्राप्त करें' : 'Summarize with AI'}
+                            </button>
+                        )}
+
+                        <button
+                            onClick={resetScanner}
+                            className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-secondary text-secondary-foreground font-semibold"
+                        >
+                            <RotateCcw className="w-5 h-5" />
+                            {language === 'hi' ? 'फिर से स्कैन करें' : 'Scan Another Document'}
+                        </button>
+                    </div>
                 )}
 
                 {/* Cancel Camera Button */}
