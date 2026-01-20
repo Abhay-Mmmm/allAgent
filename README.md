@@ -1,73 +1,132 @@
-# Welcome to your Lovable project
+# allAgent - AI-Powered Insurance Assistant 🛡️
 
-## Project info
+**allAgent** is next-generation insurance assistance platform designed for the Indian market. It bridges the gap between insurers and policyholders using advanced AI, providing a seamless experience across both web and mobile interfaces.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+![Project Banner](https://via.placeholder.com/1200x400?text=allAgent+Project)
 
-## How can I edit this code?
+## 🌟 Key Features
 
-There are several ways of editing your application.
+### 📱 Mobile Experience (For Policyholders)
+A simplified, accessible interface designed for mobile devices.
 
-**Use Lovable**
+*   **AI Chat Assistant**: 
+    *   Powered by **Groq (Llama 3.3 70B)** for instant, accurate responses.
+    *   Context-aware conversations about Crop (PMFBY), Health, Life, and Vehicle insurance.
+    *   Supports Hindi & English.
+*   **Voice Call Support**:
+    *   **Hands-free interaction**: Speak naturally to the AI.
+    *   **Technology**: Uses **Whisper-large-v3-turbo** for transcription and browser TTS for response.
+    *   **VAD (Voice Activity Detection)**: Automatically detects when you stop speaking.
+*   **Smart Document Scanner**:
+    *   **OCR Integration**: Instantly extract text from documents (e.g., Aadhaar cards) using Camera or Gallery.
+    *   **Auto-Verify**: Validates Aadhaar card formatting and masked numbers.
+    *   **Summarize with AI**: One-click workflow to send scanned text to the Chat Agent for explanation.
+*   **Localization**: Instant switching between **English** and **Hindi** across the entire app.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### 💻 Web Dashboard (For Admins/Agents)
+A comprehensive admin panel for monitoring and management.
 
-Changes made via Lovable will be committed automatically to this repo.
+*   **Analytics Dashboard**: Real-time stats on claims, policies, and active users.
+*   **Interactive Charts**: 
+    *   Regional coverage heatmaps (India map visualization).
+    *   Claims trend analysis (Bar/Area charts).
+    *   Policy distribution demographics (Pie charts).
+*   **Claims Management**: Advanced filtering, search, and status tracking for insurance claims.
+*   **Settings & Customization**: Manage user profiles and application preferences.
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🛠️ Tech Stack
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+*   **Frontend**: React (Vite) + TypeScript
+*   **Styling**: Tailwind CSS + Shadcn UI
+*   **State Management**: React Context API
+*   **AI & ML**:
+    *   **LLM**: Groq API (Llama 3.3 70B)
+    *   **Speech-to-Text**: Groq Whisper API
+    *   **OCR**: Tesseract.js
+*   **Routing**: React Router DOM (v6)
+*   **Visualization**: Recharts & Framer Motion
+*   **Icons**: Lucide React
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🚀 Getting Started
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Prerequisites
 
-# Step 3: Install the necessary dependencies.
-npm i
+*   Node.js (v18+)
+*   Groq API Key (for AI features)
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+### Installation & Running
 
-**Edit a file directly in GitHub**
+This project is a **client-side Single Page Application (SPA)** built with Vite. There is no separate backend server process to run; all "backend" logic (AI, OCR) acts via serverless API calls directly from the browser.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+#### 1. Frontend Setup (The Application)
 
-**Use GitHub Codespaces**
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/Abhay-Mmmm/allAgent.git
+    cd allAgent
+    ```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+2.  **Install dependencies**:
+    ```bash
+    npm install
+    # or
+    bun install
+    ```
 
-## What technologies are used for this project?
+3.  **Run the development server**:
+    ```bash
+    npm run dev
+    ```
+    The app will proceed to start at `http://localhost:8080`.
 
-This project is built with:
+#### 2. Backend Setup (API Keys)
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Since the app relies on external AI services, you must configure the API keys. 
 
-## How can I deploy this project?
+1.  Create a file named `.env` in the root folder.
+2.  Add your Groq API keys (Get them from [console.groq.com](https://console.groq.com)):
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+    ```env
+    VITE_GROQ_API_KEY_VOICE=gsk_...    # For Whisper (Voice Transcription)
+    VITE_GROQ_API_KEY_CHAT=gsk_...     # For Llama 3 (Chat Intelligence)
+    ```
 
-## Can I connect a custom domain to my Lovable project?
+> **Note**: You can use the same key for both variables if your token has access to both Whisper and Llama models.
 
-Yes, you can!
+---
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 🧭 Navigation
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+*   **Mobile App**: Navigate to `/mobile` (or use the toggle in the top-left).
+*   **Web Dashboard**: Navigate to `/claims` (default web view).
+
+---
+
+## 🔄 AI Workflows
+
+### Chat
+1.  User asks a query (e.g., "What is PMFBY?").
+2.  System Prompt directs AI to act as an Insurance Expert.
+3.  Groq API generates a concise, formatted response.
+
+### Voice Call 
+1.  **Record**: `MediaRecorder` captures audio + `AudioContext` detects silence.
+2.  **Transcribe**: Audio sent to Groq Whisper API.
+3.  **Think**: Transcribed text sent to Groq LLM.
+4.  **Speak**: LLM response read aloud via `window.speechSynthesis`.
+
+### Scan-to-Chat
+1.  User captures image.
+2.  `Tesseract.js` runs client-side OCR.
+3.  Extracted text is injected into Chat state.
+4.  Chat Agent analyzes and summarizes the document content.
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License.
