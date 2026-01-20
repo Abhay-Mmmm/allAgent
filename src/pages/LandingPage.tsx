@@ -1,11 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { getTranslation } from '@/lib/translations';
-import { LanguageSelector } from '@/components/LanguageSelector';
 import { MessageCircle, Shield, ChevronRight, Phone, ArrowLeft, Smartphone, LayoutDashboard, ScanLine } from 'lucide-react';
 
 export const LandingPage = () => {
-  const { language, setLanguage } = useLanguage();
+  const { language } = useLanguage();
   const navigate = useNavigate();
 
   const handleBack = () => navigate('/');
@@ -39,10 +38,6 @@ export const LandingPage = () => {
             <Smartphone className="w-3 h-3" />
             Mobile
           </div>
-          <LanguageSelector
-            currentLanguage={language}
-            onLanguageChange={setLanguage}
-          />
         </div>
       </header>
 

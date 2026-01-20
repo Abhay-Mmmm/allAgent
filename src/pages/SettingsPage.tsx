@@ -1,13 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
-import { User, Bell, Lock, Globe, Shield } from 'lucide-react';
+import { User, Bell, Lock, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { getTranslation } from '@/lib/translations';
 
 export const SettingsPage = () => {
     const navigate = useNavigate();
-    const { language, setLanguage } = useLanguage();
+    const { language } = useLanguage();
     const [fullName, setFullName] = useState('Admin Operator');
 
     const t = (key: string) => getTranslation(language, key);
@@ -52,39 +52,6 @@ export const SettingsPage = () => {
                                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
-                    </div>
-                </section>
-
-                {/* Preferences */}
-                <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="p-6 border-b border-slate-200">
-                        <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-blue-600" />
-                            {t('preferences')}
-                        </h2>
-                    </div>
-                    <div className="p-6 divide-y divide-slate-100">
-                        <div className="py-4 flex items-center justify-between">
-                            <div>
-                                <h3 className="font-medium text-slate-900">{t('language')}</h3>
-                                <p className="text-sm text-slate-500">Select dashboard language preference</p>
-                            </div>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setLanguage('en')}
-                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${language === 'en' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                                >
-                                    {t('english')}
-                                </button>
-                                <button
-                                    onClick={() => setLanguage('hi')}
-                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${language === 'hi' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                                >
-                                    {t('hindi')}
-                                </button>
-                            </div>
-                        </div>
-
                     </div>
                 </section>
 

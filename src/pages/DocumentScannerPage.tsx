@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { createWorker } from 'tesseract.js';
 import { ArrowLeft, Camera, Upload, X, CheckCircle, AlertTriangle, Loader2, RotateCcw, MessageCircle } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { LanguageSelector } from '@/components/LanguageSelector';
 
 type ScanStatus = 'idle' | 'capturing' | 'processing' | 'success' | 'error';
 
@@ -15,7 +14,7 @@ interface ScanResult {
 }
 
 export const DocumentScannerPage = () => {
-    const { language, setLanguage } = useLanguage();
+    const { language } = useLanguage();
     const navigate = useNavigate();
 
     const [status, setStatus] = useState<ScanStatus>('idle');
@@ -186,7 +185,6 @@ export const DocumentScannerPage = () => {
                         {language === 'hi' ? 'दस्तावेज़ स्कैनर' : 'Document Scanner'}
                     </span>
                 </div>
-                <LanguageSelector currentLanguage={language} onLanguageChange={setLanguage} />
             </header>
 
             <main className="flex-1 p-4 space-y-4">

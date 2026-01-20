@@ -1,12 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { ModeSelector } from '@/components/ModeSelector';
-import { LanguageSelector } from '@/components/LanguageSelector';
 import { Shield } from 'lucide-react';
 import { getTranslation } from '@/lib/translations';
 
 export const ModeSelectionPage = () => {
-    const { language, setLanguage } = useLanguage();
+    const { language } = useLanguage();
     const navigate = useNavigate();
 
     const handleModeSelect = (mode: 'web' | 'mobile') => {
@@ -29,10 +28,6 @@ export const ModeSelectionPage = () => {
                         {getTranslation(language, 'appName')}
                     </span>
                 </div>
-                <LanguageSelector
-                    currentLanguage={language}
-                    onLanguageChange={setLanguage}
-                />
             </header>
 
             {/* Main Content */}

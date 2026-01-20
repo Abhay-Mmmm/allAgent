@@ -6,10 +6,9 @@ import { useVoiceCall } from '@/hooks/useVoiceCall';
 import { useLanguage } from '@/context/LanguageContext';
 import { CallControls } from '@/components/CallControls';
 import { WaveformAnimation } from '@/components/WaveformAnimation';
-import { LanguageSelector } from '@/components/LanguageSelector';
 
 export const VoiceCallPage = () => {
-    const { language, setLanguage } = useLanguage();
+    const { language } = useLanguage();
     const navigate = useNavigate();
 
     const {
@@ -74,10 +73,7 @@ export const VoiceCallPage = () => {
                     {language === 'hi' ? 'वॉइस कॉल' : 'Voice Call'}
                 </span>
 
-                <LanguageSelector
-                    currentLanguage={language}
-                    onLanguageChange={setLanguage}
-                />
+                <div className="w-10" /> {/* Spacer for header balance */}
             </header>
 
             {/* Main Call UI */}
