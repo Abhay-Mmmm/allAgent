@@ -46,7 +46,7 @@ export const DocumentScannerPage = () => {
             }
         } catch (error) {
             console.error('Camera error:', error);
-            alert(language === 'hi' ? 'कैमरा एक्सेस नहीं मिला' : 'Could not access camera');
+            alert('Could not access camera');
         }
     }, [language]);
 
@@ -182,7 +182,7 @@ export const DocumentScannerPage = () => {
                         <ArrowLeft className="w-5 h-5 text-foreground" />
                     </button>
                     <span className="text-lg font-bold text-foreground">
-                        {language === 'hi' ? 'दस्तावेज़ स्कैनर' : 'Document Scanner'}
+                        Document Scanner
                     </span>
                 </div>
             </header>
@@ -192,12 +192,10 @@ export const DocumentScannerPage = () => {
                 {status === 'idle' && (
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                         <h3 className="font-semibold text-blue-900 mb-2">
-                            {language === 'hi' ? 'आधार कार्ड स्कैन करें' : 'Scan Aadhaar Card'}
+                            Scan Aadhaar Card
                         </h3>
                         <p className="text-blue-700 text-sm">
-                            {language === 'hi'
-                                ? 'कृपया अपने आधार कार्ड की फोटो लें या अपलोड करें। हम स्वचालित रूप से सत्यापित करेंगे।'
-                                : 'Please take a photo or upload your Aadhaar card. We will automatically verify it.'}
+                            Please take a photo or upload your Aadhaar card. We will automatically verify it.
                         </p>
                     </div>
                 )}
@@ -242,7 +240,7 @@ export const DocumentScannerPage = () => {
                             <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
                                 <Loader2 className="w-10 h-10 text-white animate-spin mb-2" />
                                 <p className="text-white font-medium">
-                                    {language === 'hi' ? 'प्रोसेसिंग...' : 'Processing...'} {ocrProgress}%
+                                    Processing... {ocrProgress}%
                                 </p>
                             </div>
                         )}
@@ -261,11 +259,11 @@ export const DocumentScannerPage = () => {
                             <div>
                                 <h3 className={`font-bold text-lg ${scanResult.isAadhaar ? 'text-emerald-900' : 'text-red-900'}`}>
                                     {scanResult.isAadhaar
-                                        ? (language === 'hi' ? '✓ आधार कार्ड सत्यापित' : '✓ Aadhaar Card Verified')
-                                        : (language === 'hi' ? '✗ यह आधार कार्ड नहीं है' : '✗ Not an Aadhaar Card')}
+                                        ? '✓ Aadhaar Card Verified'
+                                        : '✗ Not an Aadhaar Card'}
                                 </h3>
                                 <p className={`text-sm ${scanResult.isAadhaar ? 'text-emerald-700' : 'text-red-700'}`}>
-                                    {language === 'hi' ? `विश्वास स्कोर: ${scanResult.confidence}%` : `Confidence: ${scanResult.confidence}%`}
+                                    Confidence: ${scanResult.confidence}%
                                 </p>
                             </div>
                         </div>
@@ -273,7 +271,7 @@ export const DocumentScannerPage = () => {
                         {scanResult.aadhaarNumber && (
                             <div className="bg-white rounded-lg p-3 mt-3">
                                 <p className="text-sm text-slate-500">
-                                    {language === 'hi' ? 'आधार नंबर (मास्क्ड):' : 'Aadhaar Number (masked):'}
+                                    Aadhaar Number (masked):
                                 </p>
                                 <p className="font-mono text-lg font-bold text-slate-900">
                                     XXXX XXXX {scanResult.aadhaarNumber.slice(-4)}
@@ -283,9 +281,7 @@ export const DocumentScannerPage = () => {
 
                         {!scanResult.isAadhaar && (
                             <p className="text-red-700 text-sm mt-2">
-                                {language === 'hi'
-                                    ? 'कृपया वैध आधार कार्ड स्कैन करें।'
-                                    : 'Please scan a valid Aadhaar card.'}
+                                Please scan a valid Aadhaar card.
                             </p>
                         )}
                     </div>
@@ -299,7 +295,7 @@ export const DocumentScannerPage = () => {
                             className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-primary text-primary-foreground font-semibold shadow-lg"
                         >
                             <Camera className="w-6 h-6" />
-                            {language === 'hi' ? 'कैमरा से फोटो लें' : 'Take Photo with Camera'}
+                            Take Photo with Camera
                         </button>
 
                         <button
@@ -307,7 +303,7 @@ export const DocumentScannerPage = () => {
                             className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-secondary text-secondary-foreground font-semibold"
                         >
                             <Upload className="w-6 h-6" />
-                            {language === 'hi' ? 'गैलरी से अपलोड करें' : 'Upload from Gallery'}
+                            Upload from Gallery
                         </button>
                     </div>
                 )}
@@ -326,7 +322,7 @@ export const DocumentScannerPage = () => {
                                 className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold shadow-lg"
                             >
                                 <MessageCircle className="w-5 h-5" />
-                                {language === 'hi' ? 'AI से सारांश प्राप्त करें' : 'Summarize with AI'}
+                                Summarize with AI
                             </button>
                         )}
 
@@ -335,7 +331,7 @@ export const DocumentScannerPage = () => {
                             className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-secondary text-secondary-foreground font-semibold"
                         >
                             <RotateCcw className="w-5 h-5" />
-                            {language === 'hi' ? 'फिर से स्कैन करें' : 'Scan Another Document'}
+                            Scan Another Document
                         </button>
                     </div>
                 )}
@@ -347,7 +343,7 @@ export const DocumentScannerPage = () => {
                         className="w-full flex items-center justify-center gap-3 py-3 px-6 rounded-2xl bg-secondary text-secondary-foreground font-medium"
                     >
                         <X className="w-5 h-5" />
-                        {language === 'hi' ? 'रद्द करें' : 'Cancel'}
+                        Cancel
                     </button>
                 )}
             </main>

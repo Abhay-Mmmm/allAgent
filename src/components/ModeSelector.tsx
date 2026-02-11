@@ -11,19 +11,15 @@ export const ModeSelector = ({ onSelectMode, language }: ModeSelectorProps) => {
         {
             id: 'web' as AppMode,
             icon: Globe,
-            title: language === 'hi' ? 'वेब एजेंट' : 'Web Agent',
-            description: language === 'hi'
-                ? 'ब्राउज़र में पूर्ण-विशेषता वाला सहायक'
-                : 'Full-featured assistant in browser',
+            title: 'Web Agent',
+            description: 'Full-featured assistant in browser',
             gradient: 'from-blue-500 to-cyan-500',
         },
         {
             id: 'mobile' as AppMode,
             icon: Smartphone,
-            title: language === 'hi' ? 'मोबाइल ऐप' : 'Mobile App',
-            description: language === 'hi'
-                ? 'मोबाइल उपकरणों के लिए अनुकूलित'
-                : 'Optimized for mobile devices',
+            title: 'Mobile App',
+            description: 'Optimized for mobile devices',
             gradient: 'from-purple-500 to-pink-500',
         },
     ];
@@ -31,7 +27,7 @@ export const ModeSelector = ({ onSelectMode, language }: ModeSelectorProps) => {
     return (
         <div className="space-y-4">
             <h2 className="text-accessible-lg font-semibold text-foreground text-center mb-6">
-                {language === 'hi' ? 'अपना मोड चुनें' : 'Choose Your Mode'}
+                Choose Your Mode
             </h2>
 
             {modes.map(({ id, icon: Icon, title, description, gradient }) => (

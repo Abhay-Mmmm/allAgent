@@ -6,8 +6,7 @@ import { getChatCompletion, SYSTEM_PROMPTS } from '@/lib/groq';
 
 // Real AI response via Groq LLM
 const getAIResponse = async (message: string, language: Language): Promise<string> => {
-    const systemPrompt = SYSTEM_PROMPTS.VOICE_AGENT +
-        (language === 'hi' ? ' Reply in Hindi (Devanagari script).' : ' Reply in English.');
+    const systemPrompt = SYSTEM_PROMPTS.VOICE_AGENT + ' Reply in English.';
 
     return await getChatCompletion([{ role: "user", content: message }], systemPrompt);
 };
@@ -21,7 +20,7 @@ const speak = (text: string, language: Language): Promise<void> => {
         }
 
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = language === 'hi' ? 'hi-IN' : 'en-US';
+        utterance.lang = 'en-US';
         utterance.rate = 0.9;
         utterance.pitch = 1;
 

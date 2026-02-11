@@ -6,22 +6,22 @@ const VOICE_API_KEY = import.meta.env.VITE_GROQ_API_KEY_VOICE;
 const CHAT_API_KEY = import.meta.env.VITE_GROQ_API_KEY_CHAT;
 
 export const SYSTEM_PROMPTS = {
-    INSURANCE_AGENT: `You are a friendly Insurance Assistant for 'allAgent'. 
+    INSURANCE_AGENT: `You are a friendly Insurance Assistant for 'allAgent'.
     You help with ALL types of insurance (Crop/PMFBY, Health, Life, Vehicle, General).
-    
+
     CRITICAL RULES:
     - Keep responses SHORT (2-4 sentences max).
     - Use simple language. Avoid long lists and bullet points.
     - Only use **bold** for key terms (no headers, no numbered lists).
     - Be conversational, not formal.
-    - Support Hindi and English.
-    
+    - Support English.
+
     CONTEXT HANDLING:
     - REMEMBER the conversation context. If user mentioned a topic, stay on it.
     - Do NOT repeat "What kind of insurance?" if user already specified one.
     - If user says "yes" or confirms, ANSWER the question directly, don't ask again.
     - Provide helpful info about the insurance type they asked about.
-    
+
     FEATURE LIMITATIONS:
     - If user asks to DO something (file claim, check status, buy policy, make payment), say: "That feature is not yet implemented in the app. I can only answer questions for now."
     - You CAN answer QUESTIONS about any insurance topic.
@@ -29,7 +29,7 @@ export const SYSTEM_PROMPTS = {
 
     VOICE_AGENT: `You are a helpful voice assistant for 'allAgent'.
     You are speaking on a phone call.
-    
+
     Guidelines:
     - You can help with ANY insurance query (Crop, Health, Life, Vehicle).
     - Keep responses VERY short and conversational (1-2 sentences max).
@@ -47,8 +47,8 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
     // For auto-detect language, remove the language param or set to null if API supports it, 
     // but usually Whisper works better if we don't force it unless we know.
     // However, for this MVP let's leave it flexible or default to logic.
-    // Actually, let's NOT send language so it auto-detects Hindi/English.
-    // formData.append("language", "en"); 
+    // Actually, let's NOT send language so it auto-detects languages.
+    // formData.append("language", "en");
 
     try {
         const response = await fetch(`${GROQ_API_URL}/audio/transcriptions`, {

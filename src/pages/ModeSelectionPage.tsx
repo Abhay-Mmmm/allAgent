@@ -41,10 +41,7 @@ export const ModeSelectionPage = () => {
             {/* Footer */}
             <footer className="px-6 pb-6 text-center">
                 <p className="text-sm text-muted-foreground">
-                    {language === 'hi'
-                        ? '🌾 ग्रामीण भारत के लिए बीमा जानकारी'
-                        : '🌾 Insurance information for rural India'
-                    }
+                    🌾 Insurance information for rural India
                 </p>
             </footer>
         </div>

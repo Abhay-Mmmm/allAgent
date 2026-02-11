@@ -15,8 +15,7 @@ const sendChatMessage = async (message: string, language: Language, history: Mes
   // Add current message
   apiMessages.push({ role: "user", content: message });
 
-  const systemPrompt = SYSTEM_PROMPTS.INSURANCE_AGENT +
-    (language === 'hi' ? ' Reply in Hindi.' : ' Reply in English.');
+  const systemPrompt = SYSTEM_PROMPTS.INSURANCE_AGENT + ' Reply in English.';
 
   const responseText = await getChatCompletion(apiMessages, systemPrompt);
 

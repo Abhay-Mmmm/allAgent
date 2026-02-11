@@ -79,8 +79,8 @@ export const LandingPage = () => {
           </div>
           <div className="bg-card rounded-2xl p-4 card-shadow">
             <p className="text-muted-foreground text-sm mb-1">Languages</p>
-            <p className="text-accessible-xl font-bold text-foreground">2</p>
-            <p className="text-muted-foreground text-sm">Hindi & English</p>
+            <p className="text-accessible-xl font-bold text-foreground">1</p>
+            <p className="text-muted-foreground text-sm">English</p>
           </div>
         </div>
 
@@ -106,7 +106,7 @@ export const LandingPage = () => {
               <div className="flex-1 text-left">
                 <p className="font-semibold text-foreground">Voice Support</p>
                 <p className="text-muted-foreground text-sm">
-                  {language === 'hi' ? 'अपनी भाषा में बात करें' : 'Speak in your language'}
+                  Speak in your language
                 </p>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -123,7 +123,7 @@ export const LandingPage = () => {
               <div className="flex-1 text-left">
                 <p className="font-semibold text-foreground">Agent Dashboard</p>
                 <p className="text-muted-foreground text-sm">
-                  {language === 'hi' ? 'एजेंट व्यू पर स्विच करें' : 'Switch to agent view'}
+                  Switch to agent view
                 </p>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -140,7 +140,7 @@ export const LandingPage = () => {
             className="flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-2xl bg-card border border-border font-semibold text-foreground shadow-soft"
           >
             <ScanLine className="w-5 h-5" />
-            {language === 'hi' ? 'स्कैन' : 'Scan'}
+            Scan
           </button>
           <button
             onClick={handleStartChat}

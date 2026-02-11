@@ -43,15 +43,15 @@ export const VoiceCallPage = () => {
     const getStatusText = () => {
         switch (callStatus) {
             case 'connecting':
-                return language === 'hi' ? 'कनेक्ट हो रहा है...' : 'Connecting...';
+                return 'Connecting...';
             case 'active':
                 return isSpeaking
-                    ? (language === 'hi' ? 'AI बोल रहा है...' : 'AI Speaking...')
+                    ? 'AI Speaking...'
                     : isListening
-                        ? (language === 'hi' ? 'सुन रहा है...' : 'Listening...')
+                        ? 'Listening...'
                         : formattedDuration;
             case 'ended':
-                return language === 'hi' ? 'कॉल समाप्त' : 'Call Ended';
+                return 'Call Ended';
             default:
                 return '';
         }
@@ -70,7 +70,7 @@ export const VoiceCallPage = () => {
                 </button>
 
                 <span className="text-accessible-lg font-semibold text-foreground">
-                    {language === 'hi' ? 'वॉइस कॉल' : 'Voice Call'}
+                    Voice Call
                 </span>
 
                 <div className="w-10" /> {/* Spacer for header balance */}
@@ -117,10 +117,7 @@ export const VoiceCallPage = () => {
                 {/* Voice Support Warning */}
                 {!isSupported && callStatus === 'active' && (
                     <div className="bg-destructive/10 text-destructive px-4 py-2 rounded-xl mb-6 text-sm">
-                        {language === 'hi'
-                            ? 'वॉइस इनपुट इस ब्राउज़र में समर्थित नहीं है'
-                            : 'Voice input not supported in this browser'
-                        }
+                        Voice input not supported in this browser
                     </div>
                 )}
 
@@ -129,8 +126,8 @@ export const VoiceCallPage = () => {
                     <div className="w-full max-w-sm bg-card rounded-2xl p-4 shadow-soft mb-8">
                         <p className="text-sm text-muted-foreground mb-1">
                             {messages[messages.length - 1].isUser
-                                ? (language === 'hi' ? 'आपने कहा:' : 'You said:')
-                                : (language === 'hi' ? 'AI ने कहा:' : 'AI said:')
+                                ? 'You said:'
+                                : 'AI said:'
                             }
                         </p>
                         <p className="text-foreground">
@@ -154,10 +151,7 @@ export const VoiceCallPage = () => {
                 {callStatus === 'ended' && (
                     <div className="flex flex-col items-center gap-4">
                         <p className="text-muted-foreground text-center">
-                            {language === 'hi'
-                                ? `कॉल अवधि: ${formattedDuration}`
-                                : `Call duration: ${formattedDuration}`
-                            }
+                            Call duration: ${formattedDuration}
                         </p>
                         <button
                             onClick={() => {
@@ -173,7 +167,7 @@ export const VoiceCallPage = () => {
               "
                         >
                             <Phone className="w-5 h-5" />
-                            {language === 'hi' ? 'फिर से कॉल करें' : 'Call Again'}
+                            Call Again
                         </button>
                     </div>
                 )}
@@ -182,10 +176,7 @@ export const VoiceCallPage = () => {
             {/* Bottom Safety Note */}
             <footer className="px-6 pb-6 text-center">
                 <p className="text-sm text-muted-foreground">
-                    {language === 'hi'
-                        ? '🔒 आपकी आवाज़ केवल प्रश्न पूछने के लिए उपयोग की जाती है'
-                        : '🔒 Your voice is only used to ask questions'
-                    }
+                    🔒 Your voice is only used to ask questions
                 </p>
             </footer>
         </div>
