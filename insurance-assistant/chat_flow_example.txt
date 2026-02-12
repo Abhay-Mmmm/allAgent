@@ -1,0 +1,57 @@
+# AI Insurance Assistant - Example Chat Flow
+
+## Sample Chat Conversation
+
+### Initial Interaction
+**User:** "Hi, I want to know about health insurance options."
+
+**AI:** "Hello! I'd be happy to help you with health insurance information. Could you please provide your name?"
+
+**User:** "Sure, it's John Smith."
+
+**AI:** "Thank you, Mr. Smith. Could you please tell me your age for our records?"
+
+**User:** "I'm 35 years old."
+
+**AI:** "Thank you. Are you looking for individual health insurance or family coverage?"
+
+**User:** "Just for myself right now."
+
+**AI:** "Understood. Could you please tell me which state you reside in?"
+
+**User:** "California."
+
+### Information Provision Phase
+**AI:** "Thank you, Mr. Smith. Based on your information, I can provide some health insurance options. For someone in California who is 35 years old, you may qualify for individual plans through Covered California or private insurers. Would you like to hear about basic, mid-tier, or premium plan options?"
+
+**User:** "Basic would be fine."
+
+**AI:** "For basic health insurance plans in California, you'll typically have lower premiums but higher out-of-pocket costs. These plans cover essential health benefits but may have limited networks. Would you like to know about specific carriers?"
+
+### Confirmation and Next Steps
+**User:** "Yes, please."
+
+**AI:** "WellPoint and Anthem offer competitive basic plans in California. Would you like me to schedule a follow-up call to discuss specific premiums and coverage details?"
+
+**User:** "Yes, that would be great."
+
+**AI:** "Perfect. I'll note that you're interested in basic health insurance options in California and schedule a follow-up. Is there anything else I can help you with today?"
+
+### Closing
+**User:** "No, that's all for now."
+
+**AI:** "Thank you for contacting the insurance assistant, Mr. Smith. A representative will call you within 24 hours to discuss basic health insurance options. Have a great day!"
+
+## Data Collected During Conversation
+- Name: John Smith
+- Age: 35
+- Location: California
+- Insurance Interest: Basic Health Insurance
+- Follow-up Requested: Yes
+- Preferred Contact Time: Within 24 hours
+
+## Notes for Future Conversations
+- Customer showed interest in basic coverage options
+- Prefers information about WellPoint and Anthem
+- Available for follow-up calls
+- May be interested in family coverage in the future

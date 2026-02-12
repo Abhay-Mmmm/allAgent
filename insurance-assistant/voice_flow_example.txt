@@ -1,0 +1,66 @@
+# AI Insurance Assistant - Example Voice Flow
+
+## Sample Voice Conversation
+
+### Initial Greeting
+**AI:** "Hello! Thank you for calling the insurance assistant. How can I help you today?"
+
+**Caller:** "Hi, I want to know about health insurance options."
+
+**AI:** "Great! I'd be happy to help you with health insurance information. Could you please provide your name?"
+
+**Caller:** "Sure, it's Jane Doe."
+
+**AI:** "Thank you, Ms. Doe. Could you please tell me your age for our records?"
+
+**Caller:** "I'm 28 years old."
+
+**AI:** "Thank you. Are you looking for individual health insurance or family coverage?"
+
+**Caller:** "Just for myself right now."
+
+**AI:** "Understood. Could you please tell me which state you reside in?"
+
+**Caller:** "Texas."
+
+### Information Provision Phase
+**AI:** "Thank you, Ms. Doe. Based on your information, I can provide some health insurance options. For someone in Texas who is 28 years old, you may qualify for individual plans through the marketplace or private insurers. Would you like to hear about basic, mid-tier, or premium plan options?"
+
+**Caller:** "Mid-tier would be good."
+
+**AI:** "For mid-tier health insurance plans in Texas, you'll typically have moderate premiums and out-of-pocket costs. These plans offer broader coverage than basic plans with more extensive networks. Would you like to know about specific carriers?"
+
+### Confirmation and Next Steps
+**Caller:** "Yes, please."
+
+**AI:** "Blue Cross Blue Shield and United Healthcare offer competitive mid-tier plans in Texas. Would you like me to schedule a follow-up call to discuss specific premiums and coverage details?"
+
+**Caller:** "Yes, that would be great."
+
+**AI:** "Perfect. I'll note that you're interested in mid-tier health insurance options in Texas and schedule a follow-up. Is there anything else I can help you with today?"
+
+### Closing
+**Caller:** "No, that's all for now."
+
+**AI:** "Thank you for calling the insurance assistant, Ms. Doe. A representative will call you within 24 hours to discuss mid-tier health insurance options. Have a great day!"
+
+## Data Collected During Conversation
+- Name: Jane Doe
+- Age: 28
+- Location: Texas
+- Insurance Interest: Mid-tier Health Insurance
+- Follow-up Requested: Yes
+- Preferred Contact Time: Within 24 hours
+
+## Notes for Future Conversations
+- Customer showed interest in mid-tier coverage options
+- Prefers information about Blue Cross Blue Shield and United Healthcare
+- Available for follow-up calls
+- May be interested in family coverage in the future
+
+## Technical Implementation Notes
+- Audio input converted to text using AWS Transcribe
+- AI response generated using Nova Sonic model
+- Text converted to speech using AWS Polly or Nova Sonic
+- Real-time processing with low latency requirements
+- Session data stored in database for continuity

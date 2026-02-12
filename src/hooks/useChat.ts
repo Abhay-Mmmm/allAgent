@@ -13,11 +13,17 @@ const sendChatMessage = async (message: string, language: Language, history: Mes
   } as const));
 
   // Add current message
+  // apiMessages.push({ role: "user", content: message }); // Already handled in function
+
+  // We are calling the new backend via getChatCompletion
+  // The backend expects just the messages array for now in our simple implementation
+  // Actually, getChatCompletion implementation above sends just the latest message
+  // Let's rely on that for this iteration or update getChatCompletion to handle history later.
+
+  // Add current message to the list so getChatCompletion can read the last one
   apiMessages.push({ role: "user", content: message });
 
-  const systemPrompt = SYSTEM_PROMPTS.INSURANCE_AGENT + ' Reply in English.';
-
-  const responseText = await getChatCompletion(apiMessages, systemPrompt);
+  const responseText = await getChatCompletion(apiMessages, "");
 
   return {
     reply_text: responseText,

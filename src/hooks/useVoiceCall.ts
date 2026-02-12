@@ -4,11 +4,32 @@ import { getTranslation } from '@/lib/translations';
 import { useVoiceInput } from './useVoiceInput';
 import { getChatCompletion, SYSTEM_PROMPTS } from '@/lib/groq';
 
-// Real AI response via Groq LLM
+// Real AI response via AWS Bedrock (Nova Sonic Model)
 const getAIResponse = async (message: string, language: Language): Promise<string> => {
-    const systemPrompt = SYSTEM_PROMPTS.VOICE_AGENT + ' Reply in English.';
+    // Send voice transcript to backend endpoint which uses AWS Bedrock
+    try {
+        const response = await fetch('http://localhost:8000/api/voice-chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                user_identifier: "voice-user-123", // Can be dynamic
+                transcript: message,
+                // phone_number: "" // Optional
+            }),
+        });
 
-    return await getChatCompletion([{ role: "user", content: message }], systemPrompt);
+        if (!response.ok) {
+            throw new Error(`Voice API error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return data.text_response;
+    } catch (error) {
+        console.error("Error getting voice response:", error);
+        return "Sorry, I am having trouble connecting to the voice service.";
+    }
 };
 
 // Text-to-Speech utility
