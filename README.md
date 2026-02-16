@@ -1,122 +1,130 @@
 # allAgent - AI-Powered Insurance Assistant 🛡️
 
-**allAgent** is a next-generation insurance assistance platform designed to bridge the gap between insurers and policyholders using advanced AI. It features a dual-mode interaction system (Chat & Voice) backed by a robust, persistent memory layer.
+**allAgent** is next-generation insurance assistance platform designed for the Indian market. It bridges the gap between insurers and policyholders using advanced AI, providing a seamless experience across both web and mobile interfaces.
 
 ## 🌟 Key Features
 
-### 🧠 Intelligent Core
-- **Hybrid AI Architecture**: 
-  - **Chat**: Low-cost, high-intelligence reasoning via **OpenAI gpt-4o-mini**.
-  - **Voice**: Real-time speech-to-speech capabilities via **AWS Nova Sonic** (integration ready).
-- **Shared Memory Layer**: seamlessly maintains context across both text and voice sessions.
-- **Structured Data Extraction**: Automatically builds user profiles (Age, Location, Interests) from natural conversation.
+### 📱 Mobile Experience (For Policyholders)
+A simplified, accessible interface designed for mobile devices.
 
-### 📱 User Experience
-- **Mobile-First Design**: Accessible interface optimized for rural and elderly users.
-- **Multimodal Interaction**: Switch between typing and speaking instantly.
-- **Smart Document Scanner**: Client-side OCR (Tesseract.js) to digitize policy documents.
-- **Localization**: Native support for English and Hindi.
+*   **AI Chat Assistant**: 
+    *   Powered by AI models for instant, accurate responses.
+    *   Context-aware conversations about Crop (PMFBY), Health, Life, and Vehicle insurance.
+    *   Supports Hindi & English.
+*   **Voice Call Support**:
+    *   **Hands-free interaction**: Speak naturally to the AI.
+    *   **Technology**: Uses speech-to-text models for transcription and browser TTS for response.
+    *   **VAD (Voice Activity Detection)**: Automatically detects when you stop speaking.
+*   **Smart Document Scanner**:
+    *   **OCR Integration**: Instantly extract text from documents (e.g., Aadhaar cards) using Camera or Gallery.
+    *   **Auto-Verify**: Validates Aadhaar card formatting and masked numbers.
+    *   **Summarize with AI**: One-click workflow to send scanned text to the Chat Agent for explanation.
+*   **Localization**: Instant switching between **English** and **Hindi** across the entire app.
 
-### 💻 Admin Dashboard
-- **Analytics**: Real-time visualization of claims and user demographics.
-- **Regional Heatmaps**: Interactive map of insurance coverage.
-- **Claims Management**: Full administrative control over policy workflows.
+### 💻 Web Dashboard (For Admins/Agents)
+A comprehensive admin panel for monitoring and management.
+
+*   **Analytics Dashboard**: Real-time stats on claims, policies, and active users.
+*   **Interactive Charts**: 
+    *   Regional coverage heatmaps (India map visualization).
+    *   Claims trend analysis (Bar/Area charts).
+    *   Policy distribution demographics (Pie charts).
+*   **Claims Management**: Advanced filtering, search, and status tracking for insurance claims.
+*   **Settings & Customization**: Manage user profiles and application preferences.
 
 ---
 
-## 🏗️ Architecture
+## 🛠️ Tech Stack
 
-The system follows a modern, decoupled client-server architecture:
-
-```mermaid
-graph TD
-    Client[React Frontend] -->|REST API| Backend[FastAPI Server]
-    Backend -->|Chat| OpenAI[OpenAI gpt-4o-mini]
-    Backend -->|Voice Session| Nova[AWS Nova Sonic]
-    Backend -->|Persistence| DB[(SQLite / PostgreSQL)]
-    
-    style Client fill:#61dafb,stroke:#333,stroke-width:2px
-    style Backend fill:#009688,stroke:#333,stroke-width:2px
-    style OpenAI fill:#10a37f,stroke:#333,stroke-width:2px
-```
-
-### Tech Stack
-- **Frontend**: React, Vite, Tailwind CSS, Shadcn UI
-- **Backend**: FastAPI, SQLAlchemy, Async Support
-- **Database**: SQLite (Async) / PostgreSQL ready
-- **AI Services**: OpenAI API, AWS Bedrock / Nova Sonic
+*   **Frontend**: React (Vite) + TypeScript
+*   **Styling**: Tailwind CSS + Shadcn UI
+*   **State Management**: React Context API
+*   **AI & ML**:
+    *   **LLM**: AI API (LLM)
+    *   **Speech-to-Text**: AI API (Speech-to-Text)
+    *   **OCR**: Tesseract.js
+*   **Routing**: React Router DOM (v6)
+*   **Visualization**: Recharts & Framer Motion
+*   **Icons**: Lucide React
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v18+)
-- Python 3.10+
-- OpenAI API Key
-- AWS Credentials (for Voice/Storage features)
 
-### 1. Environment Setup
-Create a single `.env` file in the root directory.
+*   Node.js (v18+)
+*   AI API Key (for AI features)
 
-```env
-# Application Config
-VITE_APP_TITLE=allAgent
-VITE_API_BASE_URL=http://localhost:8000/api
+### Installation & Running
 
-# Backend Secrets
-OPENAI_API_KEY=sk-...
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-AWS_REGION=us-east-1
+This project is a **client-side Single Page Application (SPA)** built with Vite. There is no separate backend server process to run; all "backend" logic (AI, OCR) acts via serverless API calls directly from the browser.
 
-# Database
-DATABASE_URL=sqlite+aiosqlite:///./backend_memory.db
-```
+#### 1. Frontend Setup (The Application)
 
-### 2. Backend Setup
-The backend handles all AI logic and data persistence.
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/Abhay-Mmmm/allAgent.git
+    cd allAgent
+    ```
 
-```bash
-cd backend
-python -m venv venv
-# Activate venv:
-# Windows: venv\Scripts\activate
-# Mac/Linux: source venv/bin/activate
+2.  **Install dependencies**:
+    ```bash
+    npm install
+    # or
+    bun install
+    ```
 
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-*Backend runs on `http://localhost:8000`*
+3.  **Run the development server**:
+    ```bash
+    npm run dev
+    ```
+    The app will proceed to start at `http://localhost:8080`.
 
-### 3. Frontend Setup
-The frontend is the user interface for both mobile and admin users.
+#### 2. Backend Setup (API Keys)
 
-```bash
-# In the root directory (open a new terminal)
-npm install
-npm run dev
-```
-*Frontend runs on `http://localhost:8080`*
+Since the app relies on external AI services, you must configure the API keys. 
+
+1.  Create a file named `.env` in the root folder.
+2.  Add your AI API keys (Get them from your provider):
+
+    ```env
+    VITE_AI_API_KEY_VOICE=...    # For Speech Transcription
+    VITE_AI_API_KEY_CHAT=...     # For Chat Intelligence
+    ```
+
+> **Note**: You can use the same key for both variables if your token has access to both chat and speech models.
+
+---
+
+## 🧭 Navigation
+
+*   **Mobile App**: Navigate to `/mobile` (or use the toggle in the top-left).
+*   **Web Dashboard**: Navigate to `/claims` (default web view).
 
 ---
 
 ## 🔄 AI Workflows
 
-### Chat Flow
-1. **User** sends a message via the Mobile UI.
-2. **Backend** retrieves the user's profile and conversation history from the database.
-3. System injects a "Professional Insurance Agent" prompt.
-4. **OpenAI** generates a response and extracts new user details (e.g., "User is 25 years old").
-5. **Backend** updates the User Profile in real-time and returns the response.
+### Chat
+1.  User asks a query (e.g., "What is PMFBY?").
+2.  System Prompt directs AI to act as an Insurance Expert.
+3.  AI API generates a concise, formatted response.
 
-### Voice Flow
-1. **User** taps the microphone.
-2. App requests a **Voice Session** from the backend (`POST /api/voice-session`).
-3. Backend initializes a session with **AWS Nova Sonic** (via Pipecat) and returns connection details.
-4. Frontend connects to the real-time media stream for low-latency conversation.
+### Voice Call 
+1.  **Record**: `MediaRecorder` captures audio + `AudioContext` detects silence.
+2.  **Transcribe**: Audio sent to Speech-to-Text API.
+3.  **Think**: Transcribed text sent to LLM API.
+4.  **Speak**: LLM response read aloud via `window.speechSynthesis`.
+
+### Scan-to-Chat
+1.  User captures image.
+2.  `Tesseract.js` runs client-side OCR.
+3.  Extracted text is injected into Chat state.
+4.  Chat Agent analyzes and summarizes the document content.
 
 ---
 
 ## 📜 License
+
 This project is licensed under the MIT License.
