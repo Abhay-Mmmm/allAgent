@@ -1,6 +1,11 @@
 """
-AllAgent Backend — FastAPI Application Entry Point (v2.1.0)
-PostgreSQL on Railway via asyncpg + SQLAlchemy 2.x
+AllAgent — Outbound AI Sales Calling Platform
+FastAPI Application Entry Point (v3.0.0)
+
+Architecture:
+  - Groq (llama-3.3-70b) for all LLM reasoning
+  - VAPI for outbound AI voice calling
+  - Railway PostgreSQL via asyncpg + SQLAlchemy 2.x
 """
 import logging
 import sys
@@ -10,14 +15,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv, find_dotenv
 
-# Locate and load .env by searching upward from this file (works from any CWD)
+# Load .env before importing anything that reads settings
 load_dotenv(find_dotenv(usecwd=False, raise_error_if_not_found=False))
 
 from app.config import get_settings
 from app.db.database import engine, Base
 # Import models so Base.metadata is populated before create_all
 from app.db import models  # noqa: F401
-from app.routes import chat, voice, vapi
+from app.routes import leads, queue, calls, vapi
 
 # ──────────────────────────────────────────────
 #  Logging
@@ -37,26 +42,19 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    On startup: verify DB connection and create all tables (MVP approach).
-    On shutdown: dispose connection pool cleanly.
-    """
-    logger.info("Starting AllAgent backend — connecting to PostgreSQL...")
+    logger.info("Starting AllAgent Outbound Calling Platform — connecting to PostgreSQL...")
     try:
         async with engine.begin() as conn:
-            # Create all tables if they don't exist
             await conn.run_sync(Base.metadata.create_all)
         logger.info("✅ Database connected and schema is up-to-date.")
     except Exception as e:
         logger.critical(f"❌ Database connection failed on startup: {e}")
-        logger.critical("Verify DATABASE_URL is set correctly and Railway is reachable.")
-        # In production fail fast; in dev allow server to start for debugging
+        logger.critical("Verify DATABASE_URL is set correctly in .env / Railway.")
         if settings.is_production:
             sys.exit(1)
 
     yield
 
-    # Graceful shutdown
     await engine.dispose()
     logger.info("Database connection pool disposed.")
 
@@ -67,22 +65,23 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     lifespan=lifespan,
-    title="AllAgent Backend",
+    title="AllAgent — Outbound AI Sales Calling Platform",
     description=(
-        "AI-powered insurance assistant with VAPI voice integration "
-        "and Railway PostgreSQL persistence."
+        "Operator dashboard for AI-powered outbound insurance sales calls. "
+        "Uses Groq (llama-3.3-70b) for reasoning and VAPI for voice calls. "
+        "Backed by Railway PostgreSQL."
     ),
-    version="2.1.0",
+    version="3.0.0",
     docs_url="/docs" if not settings.is_production else None,
     redoc_url="/redoc" if not settings.is_production else None,
 )
 
 # ──────────────────────────────────────────────
-#  CORS
+#  CORS — allow operator dashboard origin
 # ──────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -91,9 +90,10 @@ app.add_middleware(
 # ──────────────────────────────────────────────
 #  Routers
 # ──────────────────────────────────────────────
-app.include_router(chat.router, prefix="/api", tags=["chat"])
-app.include_router(voice.router, prefix="/api", tags=["voice-emulated"])
-app.include_router(vapi.router, prefix="/api", tags=["vapi-voice"])
+app.include_router(leads.router,   prefix="/api")
+app.include_router(queue.router,   prefix="/api")
+app.include_router(calls.router,   prefix="/api")
+app.include_router(vapi.router,    prefix="/api")
 
 
 # ──────────────────────────────────────────────
@@ -104,8 +104,8 @@ app.include_router(vapi.router, prefix="/api", tags=["vapi-voice"])
 def read_root():
     return {
         "status": "online",
-        "service": "AllAgent Backend",
-        "version": "2.1.0",
+        "service": "AllAgent Outbound AI Sales Calling Platform",
+        "version": "3.0.0",
         "env": settings.app_env,
     }
 

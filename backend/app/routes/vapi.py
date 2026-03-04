@@ -1,245 +1,201 @@
 """
-VAPI Voice Routes
-Handles incoming Twilio calls, VAPI webhooks, and caller profile lookups.
+VAPI Webhook Route
+==================
+Receives all VAPI server events and processes them.
 
-Endpoints:
-  POST /incoming-call     — Accept Twilio webhook, create VAPI session
-  POST /vapi-webhook      — Receive VAPI server events (transcript, end-of-call, etc.)
-  GET  /caller-profile/{phone_number} — Return stored user profile
+POST /vapi-webhook
+
+Handled events:
+  - end-of-call-report  → extract data, update lead, save session, update queue
+  - status-update       → update queue item status
+  - assistant-request   → return personalized assistant config (not used in outbound mode, kept for safety)
+  - transcript          → logged only
 """
 
 import logging
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from app.services.memory_service import MemoryService
-from app.services.vapi_service import VAPIService, VAPIDataExtractor
-from app.schemas.schemas import CallerProfileResponse
+from app.db.models import CallQueue, CallSession, Lead
+from app.services.vapi_service import VAPIService
+from app.services.groq_service import get_groq_service
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(tags=["vapi-webhook"])
 
-
-# ──────────────────────────────────────────────
-#  POST /incoming-call
-# ──────────────────────────────────────────────
-
-@router.post("/incoming-call")
-async def incoming_call_endpoint(request: Request, db: AsyncSession = Depends(get_db)):
-    """
-    Receives the Twilio webhook for an incoming call.
-    Looks up the caller profile by phone number, injects context
-    into a transient VAPI assistant, and forwards the call to VAPI.
-    """
-    try:
-        # Parse Twilio form-encoded body or JSON body
-        content_type = request.headers.get("content-type", "")
-        if "application/x-www-form-urlencoded" in content_type:
-            form = await request.form()
-            caller_phone = form.get("From", form.get("Caller", ""))
-            called_number = form.get("To", form.get("Called", ""))
-        else:
-            body = await request.json()
-            caller_phone = body.get("from", body.get("phone_number", ""))
-            called_number = body.get("to", "")
-
-        if not caller_phone:
-            raise HTTPException(status_code=400, detail="No caller phone number provided")
-
-        logger.info(f"[incoming-call] Incoming call from {caller_phone} to {called_number}")
-
-        # 1. Retrieve or create the caller's profile
-        memory = MemoryService(db)
-        user = await memory.get_or_create_user(
-            identifier=caller_phone,
-            phone=caller_phone,
-        )
-        context = await memory.get_user_context(user.id)
-
-        # 2. Create VAPI call with personalized assistant
-        vapi = VAPIService()
-        call_result = await vapi.create_call_for_incoming(caller_phone, context)
-
-        # 3. Save the session start
-        session_id = call_result.get("id", str(uuid.uuid4()))
-        await memory.save_session(
-            user_id=user.id,
-            session_id=session_id,
-            transcript="[VAPI Voice Session Started]",
-            data={"vapi_call_id": session_id},
-            mode="voice",
-        )
-
-        logger.info(f"[incoming-call] VAPI call created: {session_id}")
-
-        return {
-            "status": "ok",
-            "message": "Call forwarded to VAPI assistant",
-            "vapi_call_id": session_id,
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"[incoming-call] Error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ──────────────────────────────────────────────
-#  POST /vapi-webhook
-# ──────────────────────────────────────────────
 
 @router.post("/vapi-webhook")
-async def vapi_webhook_endpoint(request: Request, db: AsyncSession = Depends(get_db)):
+async def vapi_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """
-    Receives events from VAPI's Server URL.
+    Main VAPI Server URL handler.
+    Validates signature, routes by event type, and persists results.
+    """
+    # 1. Read raw bytes for HMAC validation
+    raw_body = await request.body()
 
-    Key events handled:
-      - end-of-call-report  → extract data, update DB
-      - assistant-request    → return dynamic assistant config
-      - status-update        → log call status
-      - transcript           → (informational, logged)
-    """
     try:
-        # 1. Read raw body for signature validation
-        raw_body = await request.body()
         payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
-        # 2. Validate webhook signature
-        vapi = VAPIService()
-        signature = request.headers.get("x-vapi-signature")
-        if not vapi.validate_webhook_signature(raw_body, signature):
-            logger.warning("[vapi-webhook] Invalid webhook signature")
-            raise HTTPException(status_code=401, detail="Invalid webhook signature")
+    # 2. Signature validation
+    vapi = VAPIService()
+    signature = request.headers.get("x-vapi-signature")
+    if not vapi.validate_webhook_signature(raw_body, signature):
+        logger.warning("[webhook] Invalid VAPI webhook signature — rejecting")
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
-        event_type = vapi.get_event_type(payload)
-        logger.info(f"[vapi-webhook] Received event: {event_type}")
+    event_type = vapi.get_event_type(payload)
+    logger.info(f"[webhook] Received event: {event_type}")
 
-        # ── ASSISTANT-REQUEST ──
-        # VAPI asks our server for the assistant config dynamically
-        if event_type == "assistant-request":
-            phone = vapi.extract_phone_from_webhook(payload)
-            if phone:
-                memory = MemoryService(db)
-                user = await memory.get_or_create_user(identifier=phone, phone=phone)
-                context = await memory.get_user_context(user.id)
-                assistant_config = vapi.build_assistant_config(context)
-                return {"assistant": assistant_config}
-            else:
-                # Fallback: return assistant with no personalization
-                return {"assistant": vapi.build_assistant_config({})}
+    # ── END-OF-CALL-REPORT ─────────────────────────────────────────────────
+    if event_type == "end-of-call-report":
+        return await _handle_end_of_call(vapi, payload, db)
 
-        # ── END-OF-CALL-REPORT ──
-        # This is the most important event — contains the full transcript
-        if event_type == "end-of-call-report":
-            phone = vapi.extract_phone_from_webhook(payload)
-            transcript = vapi.extract_transcript(payload)
-            call_id = vapi.extract_call_id(payload) or str(uuid.uuid4())
+    # ── STATUS-UPDATE ──────────────────────────────────────────────────────
+    if event_type == "status-update":
+        return await _handle_status_update(vapi, payload, db)
 
-            if not phone:
-                logger.warning("[vapi-webhook] end-of-call-report without phone number")
-                return {"status": "ok", "note": "no phone number found"}
-
-            memory = MemoryService(db)
-            user = await memory.get_or_create_user(identifier=phone, phone=phone)
-
-            # Extract structured data from transcript using LLM
-            structured_data = {}
-            summary = ""
-            if transcript:
-                try:
-                    extractor = VAPIDataExtractor()
-                    extracted = await extractor.extract_from_transcript(transcript)
-                    # Filter out None values before updating profile
-                    structured_data = {
-                        k: v for k, v in extracted.items()
-                        if v is not None and k != "summary"
-                    }
-                    summary = extracted.get("summary", "")
-                except Exception as e:
-                    logger.error(f"[vapi-webhook] Extraction error: {e}", exc_info=True)
-
-            # Update user profile with extracted data
-            if structured_data:
-                await memory.update_user_profile(user.id, structured_data)
-
-            # Update the last conversation summary
-            if summary:
-                await memory.update_last_summary(user.id, summary)
-
-            # Save the complete session
-            await memory.save_session(
-                user_id=user.id,
-                session_id=call_id,
-                transcript=transcript or "[No transcript available]",
-                data=structured_data,
-                mode="voice",
-            )
-
-            logger.info(
-                f"[vapi-webhook] end-of-call-report processed for {phone} — "
-                f"session {call_id}, extracted fields: {list(structured_data.keys())}"
-            )
-
-            return {"status": "ok", "processed": True}
-
-        # ── STATUS-UPDATE ──
-        if event_type == "status-update":
-            message = payload.get("message", {})
-            status = message.get("status", "unknown")
-            call_id = vapi.extract_call_id(payload)
-            logger.info(f"[vapi-webhook] Call {call_id} status: {status}")
-            return {"status": "ok"}
-
-        # ── TRANSCRIPT (partial/final) ──
-        if event_type == "transcript":
-            message = payload.get("message", {})
-            transcript_type = message.get("transcriptType", "partial")
-            role = message.get("role", "unknown")
-            text = message.get("transcript", "")
-            logger.debug(f"[vapi-webhook] transcript [{transcript_type}] {role}: {text[:100]}")
-            return {"status": "ok"}
-
-        # ── ALL OTHER EVENTS ──
-        logger.info(f"[vapi-webhook] Unhandled event type: {event_type}")
+    # ── TRANSCRIPT (real-time partial) ─────────────────────────────────────
+    if event_type == "transcript":
+        message = payload.get("message", {})
+        role = message.get("role", "unknown")
+        text = message.get("transcript", "")[:100]
+        logger.debug(f"[webhook] transcript [{role}]: {text}")
         return {"status": "ok"}
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"[vapi-webhook] Error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    # ── ASSISTANT-REQUEST (inbound / fallback) ─────────────────────────────
+    if event_type == "assistant-request":
+        logger.info("[webhook] assistant-request received — this is an inbound call (unexpected in outbound mode)")
+        return {"status": "ok", "message": "outbound-only mode — assistant pre-configured"}
+
+    # ── ALL OTHER EVENTS ───────────────────────────────────────────────────
+    logger.info(f"[webhook] Unhandled event type: {event_type}")
+    return {"status": "ok"}
 
 
-# ──────────────────────────────────────────────
-#  GET /caller-profile/{phone_number}
-# ──────────────────────────────────────────────
-
-@router.get("/caller-profile/{phone_number}", response_model=CallerProfileResponse)
-async def get_caller_profile(phone_number: str, db: AsyncSession = Depends(get_db)):
+async def _handle_end_of_call(
+    vapi: VAPIService,
+    payload: dict,
+    db: AsyncSession,
+):
     """
-    Returns the stored profile for a caller identified by phone number.
-    Used by external integrations or dashboards.
+    Process an end-of-call-report:
+      1. Extract phone, transcript, call_id, duration
+      2. Find or create the lead
+      3. Use Groq to extract structured data from transcript
+      4. Update lead profile + save CallSession
+      5. Mark the CallQueue item as completed
     """
-    try:
-        memory = MemoryService(db)
-        user = await memory.get_or_create_user(identifier=phone_number, phone=phone_number)
-        context = await memory.get_user_context(user.id)
+    phone       = vapi.extract_phone_from_webhook(payload)
+    transcript  = vapi.extract_transcript(payload)
+    call_id     = vapi.extract_call_id(payload)
+    duration    = vapi.extract_call_duration(payload)
 
-        return CallerProfileResponse(
-            phone_number=phone_number,
-            name=context.get("name"),
-            age=context.get("age"),
-            occupation=context.get("occupation"),
-            location=context.get("location"),
-            insurance_interest=context.get("interest"),
-            last_summary=context.get("last_summary"),
+    if not phone:
+        logger.warning("[webhook] end-of-call-report without phone number — skipping")
+        return {"status": "ok", "note": "no phone number"}
+
+    # 1. Get or create lead
+    result = await db.execute(select(Lead).where(Lead.phone_number == phone))
+    lead = result.scalars().first()
+    if not lead:
+        lead = Lead(id=uuid.uuid4(), phone_number=phone, lead_status="contacted")
+        db.add(lead)
+        await db.flush()
+
+    # 2. Extract structured data from transcript
+    structured_data = {}
+    summary = ""
+
+    if transcript:
+        try:
+            groq = get_groq_service()
+            extracted = await groq.extract_lead_data(transcript)
+
+            # Split summary and status out from profile fields
+            summary = extracted.pop("summary", "") or ""
+            new_status = extracted.pop("lead_status", None)
+
+            # Only update non-null fields
+            structured_data = {k: v for k, v in extracted.items() if v is not None}
+
+            # Update lead profile with extracted fields
+            if structured_data:
+                for field, value in structured_data.items():
+                    if hasattr(lead, field) and value is not None:
+                        setattr(lead, field, value)
+
+            if summary:
+                lead.last_summary = summary
+
+            if new_status:
+                lead.lead_status = new_status
+
+        except Exception as e:
+            logger.error(f"[webhook] Groq extraction failed: {e}", exc_info=True)
+
+    # 3. Save CallSession (de-duplicate by vapi_call_id)
+    if call_id:
+        existing_session = await db.execute(
+            select(CallSession).where(CallSession.vapi_call_id == call_id)
         )
+        if existing_session.scalars().first():
+            logger.debug(f"[webhook] Session {call_id} already saved — skipping")
+            await db.commit()
+            return {"status": "ok", "note": "duplicate webhook"}
 
-    except Exception as e:
-        logger.error(f"[caller-profile] Error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    session = CallSession(
+        id=uuid.uuid4(),
+        vapi_call_id=call_id,
+        lead_id=lead.id,
+        transcript=transcript or "[No transcript available]",
+        structured_data=structured_data,
+        call_duration=duration,
+    )
+    db.add(session)
+
+    # 4. Mark queue item as completed
+    await db.execute(
+        update(CallQueue)
+        .where(CallQueue.phone_number == phone)
+        .where(CallQueue.status == "calling")
+        .values(status="completed")
+    )
+
+    await db.commit()
+    logger.info(
+        f"[webhook] end-of-call processed — phone={phone} call_id={call_id} "
+        f"duration={duration}s lead_status={lead.lead_status}"
+    )
+    return {"status": "ok", "processed": True}
+
+
+async def _handle_status_update(
+    vapi: VAPIService,
+    payload: dict,
+    db: AsyncSession,
+):
+    """Handle status-update events — update queue item status on known transitions."""
+    phone  = vapi.extract_phone_from_webhook(payload)
+    status = vapi.extract_call_status(payload)
+    call_id = vapi.extract_call_id(payload)
+
+    logger.info(f"[webhook] status-update: phone={phone} call_id={call_id} status={status}")
+
+    # If VAPI reports the call ended without completing, mark queue as failed
+    if status in ("no-answer", "busy", "failed", "canceled") and phone:
+        await db.execute(
+            update(CallQueue)
+            .where(CallQueue.phone_number == phone)
+            .where(CallQueue.status == "calling")
+            .values(status="failed")
+        )
+        await db.commit()
+        logger.info(f"[webhook] Queue item marked failed for {phone} (status={status})")
+
+    return {"status": "ok"}

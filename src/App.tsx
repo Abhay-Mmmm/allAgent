@@ -3,42 +3,37 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { LanguageProvider } from "@/context/LanguageContext";
-import { ModeSelectionPage } from "@/pages/ModeSelectionPage";
 import { DashboardPage } from "@/pages/DashboardPage";
-import { LandingPage } from "@/pages/LandingPage";
-import { ChatPage } from "@/pages/ChatPage";
-import { VoiceCallPage } from "@/pages/VoiceCallPage";
-import { DocumentScannerPage } from "@/pages/DocumentScannerPage";
-import { ClaimsPage } from "@/pages/ClaimsPage";
-import { SettingsPage } from "@/pages/SettingsPage";
+import { LeadsPage } from "@/pages/LeadsPage";
+import { LeadDetailPage } from "@/pages/LeadDetailPage";
+import { QueuePage } from "@/pages/QueuePage";
+import { CallsPage } from "@/pages/CallsPage";
+import { CallDetailPage } from "@/pages/CallDetailPage";
 import NotFound from "@/pages/NotFound";
-import { NovaSonicProvider } from "@/context/NovaSonicContext";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, staleTime: 30_000 },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <LanguageProvider>
-        <NovaSonicProvider>
-          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <Routes>
-              <Route path="/" element={<ModeSelectionPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/dashboard/claims" element={<ClaimsPage />} />
-              <Route path="/dashboard/settings" element={<SettingsPage />} />
-              <Route path="/mobile" element={<LandingPage />} />
-              <Route path="/mobile/chat" element={<ChatPage />} />
-              <Route path="/mobile/call" element={<VoiceCallPage />} />
-              <Route path="/mobile/scan" element={<DocumentScannerPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </NovaSonicProvider>
-      </LanguageProvider>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/leads" element={<LeadsPage />} />
+          <Route path="/leads/:id" element={<LeadDetailPage />} />
+          <Route path="/queue" element={<QueuePage />} />
+          <Route path="/calls" element={<CallsPage />} />
+          <Route path="/calls/:id" element={<CallDetailPage />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );

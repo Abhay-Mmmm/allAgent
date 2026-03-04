@@ -1,5 +1,5 @@
 """
-Centralised application configuration.
+Centralised application configuration — Outbound AI Sales Platform.
 All settings are loaded from environment variables via pydantic-settings.
 Never hardcode secrets — always use .env or Railway environment variables.
 
@@ -11,6 +11,8 @@ Never hardcode secrets — always use .env or Railway environment variables.
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import List
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,74 +21,70 @@ def _find_env_file() -> str:
     Locate the .env file by searching upward from this file's location.
     Returns the path to the first .env found, or '.env' as a fallback.
     """
-    # Walk up from backend/app/ → backend/ → allAgent/ (project root)
     current = Path(__file__).resolve().parent
     for _ in range(4):  # max 4 levels up
         candidate = current / ".env"
         if candidate.exists():
             return str(candidate)
         current = current.parent
-    return ".env"  # let pydantic-settings raise a clear error if missing
+    return ".env"
 
 
 _ENV_FILE = _find_env_file()
 
 
 class Settings(BaseSettings):
-    # ── Database ─────────────────────────────────────────────────────────────
-    # Railway injects DATABASE_URL automatically when a Postgres plugin is added.
-    # Format:  postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require
-    # We auto-convert postgresql:// → postgresql+asyncpg:// for async SQLAlchemy.
+    # ── Database (Railway PostgreSQL) ─────────────────────────────────────────
     database_url: str = "postgresql+asyncpg://user:password@localhost:5432/allagent"
 
     # ── App ───────────────────────────────────────────────────────────────────
-    app_env: str = "development"   # development | production
+    app_env:   str = "development"  # development | production
     log_level: str = "INFO"
 
-    # ── LLM — Groq ────────────────────────────────────────────────────────────
+    # CORS — comma-separated list of allowed origins
+    cors_origins_raw: str = "*"
+
+    # ── LLM — Groq (ONLY LLM provider) ───────────────────────────────────────
     groq_api_key: str = ""
 
-    # ── VAPI Voice AI ─────────────────────────────────────────────────────────
-    vapi_api_key: str = ""
-    vapi_phone_number_id: str = ""
-    vapi_server_url: str = ""
-    vapi_webhook_secret: str = ""
+    # ── VAPI Voice AI (ONLY voice provider) ──────────────────────────────────
+    vapi_api_key:          str = ""
+    vapi_phone_number_id:  str = ""
+    vapi_server_url:       str = ""
+    vapi_webhook_secret:   str = ""
 
-    # ── Frontend vars (read by Vite, not by the backend — listed for completeness)
-    # These are here purely so pydantic-settings doesn't error on VITE_* keys
-    # when reading the shared root .env file.
-    vite_app_title: str = "allAgent"
+    # ── Frontend (Vite) — read by the browser, listed here for completeness ──
+    vite_app_title:    str = "allAgent"
     vite_api_base_url: str = "http://localhost:8000/api"
-    vite_enable_voice_calls: str = "true"
-    vite_enable_document_scanner: str = "true"
-    vite_enable_multilingual: str = "false"
-    vite_debug_mode: str = "false"
 
     model_config = SettingsConfigDict(
         env_file=_ENV_FILE,
         env_file_encoding="utf-8",
-        # Silently ignore any extra keys in .env (e.g. VITE_* keys)
-        extra="ignore",
+        extra="ignore",  # Silently ignore any unknown keys (e.g. VITE_*)
     )
 
     # ── Computed properties ───────────────────────────────────────────────────
 
     @property
     def async_database_url(self) -> str:
-        """
-        Convert a plain postgresql:// (or postgres://) URL to
-        postgresql+asyncpg:// for use with SQLAlchemy asyncpg driver.
-        Railway and most providers supply the plain form.
-        """
+        """Convert postgresql:// to postgresql+asyncpg:// for SQLAlchemy asyncpg driver."""
         url = self.database_url
         for prefix in ("postgres://", "postgresql://"):
             if url.startswith(prefix):
                 return url.replace(prefix, "postgresql+asyncpg://", 1)
-        return url  # already has the correct driver prefix
+        return url  # already correct
 
     @property
     def is_production(self) -> bool:
         return self.app_env.lower() == "production"
+
+    @property
+    def cors_origins(self) -> List[str]:
+        """Parse comma-separated CORS_ORIGINS_RAW into a list."""
+        raw = self.cors_origins_raw.strip()
+        if raw == "*":
+            return ["*"]
+        return [o.strip() for o in raw.split(",") if o.strip()]
 
 
 @lru_cache()
