@@ -13,6 +13,7 @@ import { DocumentScannerPage } from "@/pages/DocumentScannerPage";
 import { ClaimsPage } from "@/pages/ClaimsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import NotFound from "@/pages/NotFound";
+import { NovaSonicProvider } from "@/context/NovaSonicContext";
 
 const queryClient = new QueryClient();
 
@@ -22,19 +23,21 @@ const App = () => (
       <Toaster />
       <Sonner />
       <LanguageProvider>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <Routes>
-            <Route path="/" element={<ModeSelectionPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/dashboard/claims" element={<ClaimsPage />} />
-            <Route path="/dashboard/settings" element={<SettingsPage />} />
-            <Route path="/mobile" element={<LandingPage />} />
-            <Route path="/mobile/chat" element={<ChatPage />} />
-            <Route path="/mobile/call" element={<VoiceCallPage />} />
-            <Route path="/mobile/scan" element={<DocumentScannerPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <NovaSonicProvider>
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <Routes>
+              <Route path="/" element={<ModeSelectionPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/dashboard/claims" element={<ClaimsPage />} />
+              <Route path="/dashboard/settings" element={<SettingsPage />} />
+              <Route path="/mobile" element={<LandingPage />} />
+              <Route path="/mobile/chat" element={<ChatPage />} />
+              <Route path="/mobile/call" element={<VoiceCallPage />} />
+              <Route path="/mobile/scan" element={<DocumentScannerPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </NovaSonicProvider>
       </LanguageProvider>
     </TooltipProvider>
   </QueryClientProvider>

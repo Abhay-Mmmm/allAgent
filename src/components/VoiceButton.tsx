@@ -1,6 +1,8 @@
 import { Mic, MicOff } from 'lucide-react';
 import { Language } from '@/types/chat';
 import { getTranslation } from '@/lib/translations';
+import { useNovaSonic } from "@/context/NovaSonicContext";
+import { useState } from "react";
 
 interface VoiceButtonProps {
   isListening: boolean;
@@ -10,6 +12,14 @@ interface VoiceButtonProps {
 }
 
 export const VoiceButton = ({ isListening, isSupported, onToggle, language }: VoiceButtonProps) => {
+  const { transcribeAudio } = useNovaSonic();
+  const [transcription, setTranscription] = useState("");
+
+  const handleAudioProcessing = async (audioBlob: Blob) => {
+    const result = await transcribeAudio(audioBlob);
+    setTranscription(result);
+  };
+
   if (!isSupported) {
     return (
       <button
@@ -24,24 +34,27 @@ export const VoiceButton = ({ isListening, isSupported, onToggle, language }: Vo
   }
 
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={`
-        flex items-center justify-center
-        w-12 h-12 rounded-2xl
-        transition-all duration-200
-        ${isListening 
-          ? 'bg-accent text-accent-foreground recording-pulse shadow-soft' 
-          : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`
+          flex items-center justify-center
+          w-12 h-12 rounded-2xl
+          transition-all duration-200
+          ${isListening 
+            ? 'bg-accent text-accent-foreground recording-pulse shadow-soft' 
+            : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+          }
+        `}
+        aria-label={isListening 
+          ? getTranslation(language, 'stopRecording') 
+          : getTranslation(language, 'startRecording')
         }
-      `}
-      aria-label={isListening 
-        ? getTranslation(language, 'stopRecording') 
-        : getTranslation(language, 'startRecording')
-      }
-    >
-      <Mic className="w-5 h-5" />
-    </button>
+      >
+        <Mic className="w-5 h-5" />
+      </button>
+      {transcription && <p className="mt-2 text-sm">{transcription}</p>}
+    </div>
   );
 };

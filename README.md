@@ -5,7 +5,7 @@
 ## 🌟 Key Features
 
 ### 📱 Mobile Experience (For Policyholders)
-A simplified, accessible interface designed for mobile devices.
+A simplified, accessible interface designed for mobile phones.
 
 *   **AI Chat Assistant**: 
     *   Powered by AI models for instant, accurate responses.

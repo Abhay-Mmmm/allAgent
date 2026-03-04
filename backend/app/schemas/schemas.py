@@ -1,12 +1,18 @@
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
+
+
+# ──────────────────────────────────────────────
+#  USER PROFILE SCHEMAS
+# ──────────────────────────────────────────────
 
 class UserProfileBase(BaseModel):
     phone_number: Optional[str] = None
     user_identifier: Optional[str] = None
     name: Optional[str] = None
     age: Optional[int] = None
+    occupation: Optional[str] = None
     location: Optional[str] = None
     insurance_interest: Optional[str] = None
     last_summary: Optional[str] = None
@@ -20,6 +26,11 @@ class UserProfile(UserProfileBase):
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
+
+# ──────────────────────────────────────────────
+#  CHAT SCHEMAS (unchanged)
+# ──────────────────────────────────────────────
+
 class ChatRequest(BaseModel):
     user_identifier: str
     message: str
@@ -29,14 +40,10 @@ class ChatResponse(BaseModel):
     response: str
     structured_data: Optional[Dict[str, Any]] = None
 
-class VoiceSessionStartRequest(BaseModel):
-    phone_number: str
-    user_identifier: Optional[str] = None
 
-class VoiceSessionResponse(BaseModel):
-    session_id: str
-    url: str  # Assuming this returns a connection URL or similar depending on client SDK
-    status: str
+# ──────────────────────────────────────────────
+#  VOICE-EMULATED SCHEMAS (browser STT/TTS)
+# ──────────────────────────────────────────────
 
 class VoiceChatRequest(BaseModel):
     user_identifier: str
@@ -45,3 +52,18 @@ class VoiceChatRequest(BaseModel):
 
 class VoiceChatResponse(BaseModel):
     text_response: str
+
+
+# ──────────────────────────────────────────────
+#  VAPI / CALLER PROFILE SCHEMAS
+# ──────────────────────────────────────────────
+
+class CallerProfileResponse(BaseModel):
+    """Returned by GET /caller-profile/{phone_number}"""
+    phone_number: str
+    name: Optional[str] = None
+    age: Optional[int] = None
+    occupation: Optional[str] = None
+    location: Optional[str] = None
+    insurance_interest: Optional[str] = None
+    last_summary: Optional[str] = None
