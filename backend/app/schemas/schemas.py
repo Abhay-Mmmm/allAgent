@@ -5,7 +5,7 @@ Groups:
   - Lead schemas      — CRUD for lead profiles
   - Queue schemas     — Call queue management
   - CallSession       — Completed call records
-  - Webhook schemas   — VAPI webhook payloads (internal use)
+  - Webhook schemas   — Twilio status callbacks (internal use)
 """
 
 from datetime import datetime
@@ -64,7 +64,7 @@ class LeadListResponse(BaseModel):
 
 class CallSessionResponse(BaseModel):
     id:              UUID
-    vapi_call_id:    Optional[str] = None
+    call_sid:        Optional[str] = None   # Twilio CallSid
     lead_id:         UUID
     transcript:      str
     structured_data: Optional[Dict[str, Any]] = None

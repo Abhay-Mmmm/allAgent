@@ -59,7 +59,7 @@ export const CallsPage = () => {
                     <table className="data-table">
                         <thead>
                             <tr>
-                                {["Date & Time", "Lead Name", "Duration", "Insurance Interest", "VAPI Call ID", ""].map(h => (
+                                {["Date & Time", "Lead Name", "Duration", "Insurance Interest", "Call SID", ""].map(h => (
                                     <th key={h} style={TH_STYLE}>{h}</th>
                                 ))}
                             </tr>
@@ -109,7 +109,7 @@ export const CallsPage = () => {
                                         {call.structured_data?.insurance_interest ?? <span style={{ color: "var(--text-tertiary)" }}>—</span>}
                                     </td>
                                     <td style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", letterSpacing: "0.02em" }}>
-                                        {call.vapi_call_id?.slice(0, 14) ?? "—"}
+                                        {call.call_sid?.slice(0, 14) ?? "—"}
                                     </td>
                                     <td style={{ padding: "12px 12px 12px 0" }}>
                                         <ArrowRight size={14} color="var(--border-strong)" />

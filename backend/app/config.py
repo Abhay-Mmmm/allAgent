@@ -47,11 +47,13 @@ class Settings(BaseSettings):
     # ── LLM — Groq (ONLY LLM provider) ───────────────────────────────────────
     groq_api_key: str = ""
 
-    # ── VAPI Voice AI (ONLY voice provider) ──────────────────────────────────
-    vapi_api_key:          str = ""
-    vapi_phone_number_id:  str = ""
-    vapi_server_url:       str = ""
-    vapi_webhook_secret:   str = ""
+    # ── Twilio (native TwiML voice loop) ─────────────────────────────────────
+    twilio_account_sid:  str = ""
+    twilio_auth_token:   str = ""
+    twilio_phone_number: str = ""   # E.164, e.g. +14155551234
+    # Public base URL reachable by Twilio — e.g. your ngrok HTTPS URL.
+    # If empty, the webhook derives it from the incoming request Host header.
+    twilio_base_url:     str = ""   # e.g. https://abc.ngrok-free.app
 
     # ── Frontend (Vite) — read by the browser, listed here for completeness ──
     vite_app_title:    str = "allAgent"

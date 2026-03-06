@@ -16,7 +16,10 @@ pydantic-settings>=2.0.0
 groq>=1.0.0               # Official Groq async SDK
 
 # ── HTTP Client ───────────────────────────────────────────────────────────
-httpx>=0.27.0             # VAPI REST calls from QueueManager
+httpx>=0.27.0             # Twilio REST calls from QueueManager
 
 # ── Alembic (DB Migrations) ───────────────────────────────────────────────
 alembic>=1.13.0
+
+# ── Twilio (outbound call initiation + TwiML status callbacks) ────────────
+twilio>=9.0.0

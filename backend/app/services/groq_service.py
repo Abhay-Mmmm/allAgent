@@ -5,7 +5,7 @@ Sole LLM provider for the outbound AI sales platform.
 
 Responsibilities:
   - Structured data extraction from call transcripts
-  - Conversation reasoning (used internally by VAPI assistant config builder)
+  - Conversation reasoning for the Twilio TwiML AI loop
   - JSON mode responses for reliable parsing
 
 Model: llama-3.3-70b-versatile (Groq hosted — sub-200ms TTFT)
@@ -142,12 +142,12 @@ TRANSCRIPT:
             }
 
     # ──────────────────────────────────────────────
-    #  VAPI ASSISTANT SYSTEM PROMPT BUILDER
+    #  OUTBOUND SYSTEM PROMPT BUILDER
     # ──────────────────────────────────────────────
 
     def build_outbound_system_prompt(self, lead_context: Dict[str, Any]) -> str:
         """
-        Build a personalized system prompt for the VAPI outbound assistant.
+        Build a personalized system prompt for the outbound AI assistant.
         Injects known lead details so the AI never re-asks information.
         """
         name            = lead_context.get("name") or "the prospect"

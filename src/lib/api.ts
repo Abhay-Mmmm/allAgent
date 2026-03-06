@@ -38,7 +38,7 @@ export interface Lead {
 
 export interface CallSession {
     id: string;
-    vapi_call_id: string | null;
+    call_sid: string | null;
     lead_id: string;
     transcript: string;
     structured_data: Record<string, any> | null;

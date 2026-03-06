@@ -1,19 +1,19 @@
 """
 Call Queue Manager
 ==================
-Manages the outbound call queue and orchestrates VAPI calls.
+Manages the outbound call queue and orchestrates Twilio calls.
 
 Responsibilities:
   - Add phone numbers to the queue (single or batch)
   - Process the queue sequentially (one active call at a time)
-  - Trigger VAPI outbound calls
+  - Trigger Twilio outbound calls via REST API
   - Update queue item status after each call
   - Retry logic for failed calls (max 3 attempts)
 
 Queue states:
   pending   → ready to be called
-  calling   → VAPI call in-flight
-  completed → call ended successfully and webhook received
+  calling   → Twilio call in-flight
+  completed → call ended successfully and status callback received
   failed    → max attempts reached or permanent error
 """
 
@@ -32,7 +32,7 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-VAPI_API_BASE = "https://api.vapi.ai"
+TWILIO_API_BASE = "https://api.twilio.com/2010-04-01"
 MAX_RETRY_ATTEMPTS = 3
 CALL_INTERVAL_SECONDS = 5  # Wait between consecutive calls to avoid rate limits
 
@@ -49,13 +49,19 @@ class QueueManager:
 
     def __init__(self):
         settings = get_settings()
-        self.vapi_api_key       = settings.vapi_api_key
-        self.phone_number_id    = settings.vapi_phone_number_id
-        self.server_url         = settings.vapi_server_url
-        self.groq_api_key       = settings.groq_api_key
+        self.twilio_account_sid  = settings.twilio_account_sid
+        self.twilio_auth_token   = settings.twilio_auth_token
+        self.twilio_phone_number = settings.twilio_phone_number
+        self.twilio_base_url     = settings.twilio_base_url.rstrip("/")
+        self.groq_api_key        = settings.groq_api_key
 
-        if not self.vapi_api_key:
-            raise ValueError("VAPI_API_KEY is not set — cannot make outbound calls")
+        if not self.twilio_account_sid or not self.twilio_auth_token:
+            raise ValueError(
+                "TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be set — "
+                "cannot make outbound calls"
+            )
+        if not self.twilio_phone_number:
+            raise ValueError("TWILIO_PHONE_NUMBER is not set — cannot make outbound calls")
 
     # ──────────────────────────────────────────────
     #  QUEUE MANAGEMENT
@@ -191,7 +197,7 @@ class QueueManager:
 
     async def _call_number(self, item: CallQueue) -> bool:
         """
-        Trigger a single VAPI outbound call for a queue item.
+        Trigger a single Twilio outbound call for a queue item.
         Updates DB status throughout the lifecycle.
         Returns True if call was successfully initiated.
         """
@@ -205,18 +211,16 @@ class QueueManager:
             await db.commit()
 
             # Ensure lead exists
-            lead = await self._get_or_create_lead(db, item.phone_number)
-            lead_context = self._build_lead_context(lead)
+            await self._get_or_create_lead(db, item.phone_number)
 
         try:
-            call_result = await self._trigger_vapi_call(item.phone_number, lead_context)
-            vapi_call_id = call_result.get("id", "unknown")
-            logger.info(f"[Queue] Initiated VAPI call {vapi_call_id} for {item.phone_number}")
-            # Status stays "calling" — webhook will update to "completed"
+            call_sid = await self._trigger_twilio_call(item.phone_number)
+            logger.info(f"[Queue] Initiated Twilio call {call_sid} for {item.phone_number}")
+            # Status stays "calling" — /twilio/status webhook will update it
             return True
 
         except Exception as e:
-            logger.error(f"[Queue] VAPI call failed for {item.phone_number}: {e}")
+            logger.error(f"[Queue] Twilio call failed for {item.phone_number}: {e}")
             async with SessionLocal() as db:
                 new_status = "failed" if item.attempts + 1 >= MAX_RETRY_ATTEMPTS else "pending"
                 await db.execute(
@@ -227,69 +231,33 @@ class QueueManager:
                 await db.commit()
             return False
 
-    async def _trigger_vapi_call(
-        self, phone_number: str, lead_context: dict
-    ) -> dict:
-        """POST to VAPI /call to initiate an outbound call."""
-        from app.services.groq_service import get_groq_service
-        groq = get_groq_service()
-        system_prompt = groq.build_outbound_system_prompt(lead_context)
-
-        name = lead_context.get("name") or "Prospect"
-        greeting = (
-            f"Hello! Am I speaking with {name}? "
-            "This is an advisor from allAgent, your AI-powered insurance assistant. "
-            "I'm calling to help you explore insurance options that might be a great fit for you. "
-            "Do you have a few minutes to chat?"
-        ) if name != "Prospect" else (
-            "Hello! This is an advisor from allAgent, your AI-powered insurance assistant. "
-            "I'm calling to help you explore insurance options. "
-            "May I know who I'm speaking with?"
-        )
-
-        payload = {
-            "phoneNumberId": self.phone_number_id,
-            "customer": {"number": phone_number},
-            "assistant": {
-                "name": "allAgent Insurance Advisor",
-                "firstMessage": greeting,
-                "model": {
-                    "provider": "groq",
-                    "model": "llama-3.3-70b-versatile",
-                    "messages": [{"role": "system", "content": system_prompt}],
-                    "temperature": 0.6,
-                    "maxTokens": 512,
-                },
-                "voice": {
-                    "provider": "11labs",
-                    "voiceId": "21m00Tcm4TlvDq8ikWAM",  # Rachel — warm, professional
-                },
-                "transcriber": {
-                    "provider": "deepgram",
-                    "model": "nova-2",
-                    "language": "en",
-                },
-                "serverUrl": self.server_url,
-                "endCallFunctionEnabled": True,
-                "silenceTimeoutSeconds": 30,
-                "maxDurationSeconds": 600,
-                "backgroundSound": "off",
-            },
-        }
-
-        headers = {
-            "Authorization": f"Bearer {self.vapi_api_key}",
-            "Content-Type": "application/json",
-        }
+    async def _trigger_twilio_call(self, phone_number: str) -> str:
+        """
+        POST to Twilio REST API to initiate an outbound call.
+        Twilio will hit our /api/twilio/voice webhook when the lead picks up.
+        Returns the Twilio CallSid.
+        """
+        voice_url    = f"{self.twilio_base_url}/api/twilio/voice"
+        status_url   = f"{self.twilio_base_url}/api/twilio/status"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                f"{VAPI_API_BASE}/call",
-                json=payload,
-                headers=headers,
+                f"{TWILIO_API_BASE}/Accounts/{self.twilio_account_sid}/Calls.json",
+                auth=(self.twilio_account_sid, self.twilio_auth_token),
+                data={
+                    "From":           self.twilio_phone_number,
+                    "To":             phone_number,
+                    "Url":            voice_url,
+                    "StatusCallback": status_url,
+                    "StatusCallbackMethod": "POST",
+                    "StatusCallbackEvent":  "completed ringing answered",
+                    "Timeout":        30,   # seconds to ring before no-answer
+                    "MachineDetection": "Enable",   # skip voicemail greeting
+                },
             )
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            return data.get("sid", "unknown")
 
     @staticmethod
     async def _get_or_create_lead(db: AsyncSession, phone_number: str) -> Lead:

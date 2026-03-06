@@ -9,6 +9,6 @@ Usage in alembic/env.py:
     from app.db.base import *     # if you want models explicitly
 """
 from app.db.database import Base  # noqa: F401
-from app.db.models import User, Session  # noqa: F401 — register metadata
+from app.db.models import Lead, CallSession, CallQueue  # noqa: F401 — register metadata
 
-__all__ = ["Base", "User", "Session"]
+__all__ = ["Base", "Lead", "CallSession", "CallQueue"]

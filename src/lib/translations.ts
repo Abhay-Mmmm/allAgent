@@ -32,7 +32,7 @@ export const translations: Record<Language, Record<string, string>> = {
     newEnrollments: 'NEW ENROLLMENTS',
     claimsOpen: 'CLAIMS OPEN',
     successRate: 'SUCCESS RATE',
-    liveCallQueue: 'Live Call Queue (VAPI Integration)',
+    liveCallQueue: 'Live Call Queue',
     userManagement: 'User Management & KYC',
     alerts: 'Alerts & Exceptions',
     aiRecommendations: 'AI Product Recommendations',

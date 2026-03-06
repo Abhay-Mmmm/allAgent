@@ -6,9 +6,9 @@ Run from the backend/ directory:
 
 Tests:
   1. Connection to PostgreSQL
-  2. Table existence (users, sessions)
-  3. Create a test user
-  4. Create a test session
+  2. Table existence (leads, call_sessions)
+  3. Create a test lead
+  4. Create a test call session
   5. Retrieve and verify data
   6. Cleanup test data
 """
@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 
 from app.config import get_settings
 from app.db.database import Base
-from app.db.models import User, Session  # noqa: F401
+from app.db.models import Lead, CallSession  # noqa: F401
 
 
 async def run_tests():
@@ -57,7 +57,7 @@ async def run_tests():
         # ── TEST 3: Verify tables exist ────────────────────────────────────
         print("\n[TEST 3] Verifying table existence...")
         async with engine.connect() as conn:
-            for table in ["users", "sessions"]:
+            for table in ["leads", "call_sessions", "call_queue"]:
                 result = await conn.execute(
                     text(
                         "SELECT EXISTS ("
@@ -76,53 +76,53 @@ async def run_tests():
             test_user_id = uuid.uuid4()
             test_phone = f"+91_test_{test_user_id.hex[:8]}"
 
-            # ── TEST 4: Insert a user ──────────────────────────────────────
-            print("\n[TEST 4] Inserting test user...")
-            user = User(
+            # ── TEST 4: Insert a lead ──────────────────────────────────────
+            print("\n[TEST 4] Inserting test lead...")
+            lead = Lead(
                 id=test_user_id,
                 phone_number=test_phone,
-                user_identifier=f"test_{test_user_id.hex[:8]}",
-                name="Test User",
+                name="Test Lead",
                 age=30,
                 occupation="Engineer",
                 location="Mumbai",
                 insurance_interest="health",
+                lead_status="new",
             )
-            db.add(user)
+            db.add(lead)
             await db.commit()
-            await db.refresh(user)
-            print(f"  ✅ User created: id={user.id}, name={user.name}")
+            await db.refresh(lead)
+            print(f"  ✅ Lead created: id={lead.id}, name={lead.name}")
 
-            # ── TEST 5: Insert a session ───────────────────────────────────
+            # ── TEST 5: Insert a call session ───────────────────────────────────
             print("\n[TEST 5] Inserting test session...")
-            session = Session(
+            session = CallSession(
                 id=uuid.uuid4(),
-                user_id=test_user_id,
-                session_id=f"test_session_{uuid.uuid4().hex[:8]}",
+                lead_id=test_user_id,
+                call_sid=f"CA{uuid.uuid4().hex[:30]}",
                 transcript="User: Hello\nAI: How can I help?",
-                structured_data={"name": "Test User", "insurance_interest": "health"},
-                mode="chat",
+                structured_data={"name": "Test Lead", "insurance_interest": "health"},
+                call_duration=45,
             )
             db.add(session)
             await db.commit()
-            print(f"  ✅ Session created: session_id={session.session_id}")
+            print(f"  ✅ Session created: call_sid={session.call_sid}")
 
             # ── TEST 6: Retrieve and verify ────────────────────────────────
             print("\n[TEST 6] Retrieving and verifying data...")
             from sqlalchemy.future import select
-            result = await db.execute(select(User).where(User.id == test_user_id))
+            result = await db.execute(select(Lead).where(Lead.id == test_user_id))
             fetched = result.scalars().first()
-            assert fetched is not None, "User not found after insert!"
-            assert fetched.name == "Test User"
+            assert fetched is not None, "Lead not found after insert!"
+            assert fetched.name == "Test Lead"
             assert fetched.age == 30
-            print(f"  ✅ User retrieved: {fetched.name}, age={fetched.age}")
+            print(f"  ✅ Lead retrieved: {fetched.name}, age={fetched.age}")
 
             # ── TEST 7: JSONB query ────────────────────────────────────────
             print("\n[TEST 7] JSONB query on structured_data...")
             result = await db.execute(
                 text(
-                    "SELECT session_id, structured_data "
-                    "FROM sessions "
+                    "SELECT call_sid, structured_data "
+                    "FROM call_sessions "
                     "WHERE structured_data->>'insurance_interest' = 'health'"
                 )
             )
@@ -132,10 +132,10 @@ async def run_tests():
             # ── CLEANUP ────────────────────────────────────────────────────
             print("\n[CLEANUP] Removing test data...")
             await db.execute(
-                text(f"DELETE FROM sessions WHERE user_id = '{test_user_id}'")
+                text(f"DELETE FROM call_sessions WHERE lead_id = '{test_user_id}'")
             )
             await db.execute(
-                text(f"DELETE FROM users WHERE id = '{test_user_id}'")
+                text(f"DELETE FROM leads WHERE id = '{test_user_id}'")
             )
             await db.commit()
             print("  ✅ Test data removed")

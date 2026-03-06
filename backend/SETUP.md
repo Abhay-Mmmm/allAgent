@@ -2,9 +2,8 @@
 
 ## 1. Prerequisites
 - Python 3.10+
-- Groq API Key (for LLM intelligence)
-- VAPI Account + API Key (for voice AI — [dashboard.vapi.ai](https://dashboard.vapi.ai))
-- Twilio or Exotel account (for telephony, configured through VAPI)
+- Groq API Key (for LLM intelligence — [console.groq.com](https://console.groq.com/keys))
+- Twilio Account + API credentials ([console.twilio.com](https://console.twilio.com))
 - ngrok or similar tunnel (for local webhook development)
 
 ## 2. Installation (Local)
@@ -26,10 +25,10 @@
    - Copy `.env.example` to `../.env` (project root) or `backend/.env`
    - Required Keys:
      - `GROQ_API_KEY` — Groq API key for LLM (chat + data extraction)
-     - `VAPI_API_KEY` — VAPI API key for voice assistant
-     - `VAPI_PHONE_NUMBER_ID` — Your VAPI phone number ID
-     - `VAPI_SERVER_URL` — Public webhook URL (e.g. `https://your-ngrok.ngrok.io/api/vapi-webhook`)
-     - `VAPI_WEBHOOK_SECRET` — (Optional) HMAC secret for webhook validation
+     - `TWILIO_ACCOUNT_SID` — Twilio account SID
+     - `TWILIO_AUTH_TOKEN` — Twilio auth token
+     - `TWILIO_PHONE_NUMBER` — Your Twilio phone number (E.164 format, e.g. `+14155551234`)
+     - `TWILIO_BASE_URL` — Public base URL reachable by Twilio (e.g. `https://your-ngrok.ngrok-free.app`)
 
 4. Run the server:
    ```bash
@@ -40,96 +39,51 @@
    ```bash
    ngrok http 8000
    ```
-   Then set `VAPI_SERVER_URL` to the ngrok URL + `/api/vapi-webhook`.
+   Then set `TWILIO_BASE_URL` to the ngrok HTTPS URL (no trailing slash).
+
+   In the **Twilio Console** → your phone number → Voice Configuration:
+   - **"A call comes in"** → `{TWILIO_BASE_URL}/api/twilio/voice` (HTTP POST)
+   - **"Call Status Changes"** → `{TWILIO_BASE_URL}/api/twilio/status` (HTTP POST)
 
 ## 3. Architecture
 
 ```
-Incoming Call (Twilio/Exotel)
-  → VAPI handles: STT → LLM → TTS (full conversation)
-  → VAPI sends webhook events to your server
-  → Backend processes end-of-call-report
-  → Extracts structured data via Groq LLM
-  → Updates SQLite DB (user profile + session)
+QueueManager.start_campaign()
+  → POST Twilio REST API /Calls.json  (initiates outbound call)
+  → Twilio dials the lead
+
+Lead picks up
+  → POST /api/twilio/voice            (entry TwiML — greeting + <Gather>)
+  → Lead speaks
+  → POST /api/twilio/process-speech   (speech → Groq → TwiML <Say> + <Gather>)
+  → Conversation loop …
+  → POST /api/twilio/status           (terminal status → DB update + session saved)
+  → Groq extract_lead_data() runs on transcript
+  → Lead profile + CallSession persisted to PostgreSQL
 ```
 
 ## 4. API Endpoints
 
-### Chat Mode (`POST /api/chat`)
-Text-based chat with the insurance assistant (uses Groq LLM).
+### Twilio Voice Entry (`POST /api/twilio/voice`)
+Twilio calls this when the lead picks up. Returns TwiML greeting + `<Gather>`.
 
-**Request:**
-```json
-{
-  "user_identifier": "user_unique_id",
-  "message": "I am looking for health insurance for my family.",
-  "phone_number": "+919876543210"
-}
-```
-**Response:**
-```json
-{
-  "response": "Certainly! I can help with that. What is your age?",
-  "structured_data": { "insurance_interest": "health" }
-}
-```
+### Twilio Process Speech (`POST /api/twilio/process-speech`)
+Receives `SpeechResult` from Twilio, sends to Groq, returns TwiML `<Say>` + new `<Gather>`.
 
-### Incoming Call (`POST /api/incoming-call`)
-Accepts a Twilio/Exotel webhook for an incoming call and forwards to VAPI.
+### Twilio Status (`POST /api/twilio/status`)
+Receives call lifecycle events. On terminal status (`completed`, `failed`, `busy`, `no-answer`):
+- Updates `CallQueue` row status
+- Saves `CallSession` with conversation transcript
+- Clears in-memory conversation history
 
-**Request (JSON):**
-```json
-{
-  "from": "+919876543210",
-  "to": "+911234567890"
-}
-```
-**Response:**
-```json
-{
-  "status": "ok",
-  "message": "Call forwarded to VAPI assistant",
-  "vapi_call_id": "vapi-call-uuid"
-}
-```
+### Leads (`GET /api/leads`, `POST /api/leads/import`)
+Lead profile management and CSV import.
 
-### VAPI Webhook (`POST /api/vapi-webhook`)
-Receives server events from VAPI (end-of-call-report, transcript, status-update, etc.).
-Configured as your VAPI assistant's Server URL.
+### Queue (`GET /api/queue`, `POST /api/queue/add`, `POST /api/queue/start`)
+Outbound call queue management and campaign runner.
 
-### Caller Profile (`GET /api/caller-profile/{phone_number}`)
-Returns stored profile for a phone number.
-
-**Response:**
-```json
-{
-  "phone_number": "+919876543210",
-  "name": "Raj Sharma",
-  "age": 35,
-  "occupation": "Farmer",
-  "location": "Pune, Maharashtra",
-  "insurance_interest": "health",
-  "last_summary": "Discussed health insurance options for family."
-}
-```
-
-### Voice Chat — Emulated (`POST /api/voice-chat`)
-Browser-based voice chat: browser handles STT/TTS, backend handles LLM.
-
-**Request:**
-```json
-{
-  "user_identifier": "user_unique_id",
-  "transcript": "I want to know about crop insurance.",
-  "phone_number": "+919876543210"
-}
-```
-**Response:**
-```json
-{
-  "text_response": "Crop insurance under PMFBY covers..."
-}
-```
+### Calls (`GET /api/calls`, `GET /api/calls/{id}`)
+Completed call session history with transcripts.
 
 ## 5. Docker Deployment
 
@@ -141,9 +95,8 @@ docker run -p 8000:8000 --env-file .env allagent-backend
 
 ## 6. Testing
 
-Run the test suite:
 ```bash
 # Start the server first, then in another terminal:
-python test_vapi.py
+python test_db.py
 python test_chat.py
 ```

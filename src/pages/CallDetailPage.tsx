@@ -149,7 +149,7 @@ export const CallDetailPage = () => {
                             <MetaRow label="Duration" value={duration} />
                             <MetaRow label="Date" value={new Date(session.timestamp).toLocaleDateString()} />
                             <MetaRow label="Outcome" value={extracted.lead_status} />
-                            <MetaRow label="VAPI ID" value={session.vapi_call_id?.slice(0, 18)} />
+                            <MetaRow label="Call SID" value={session.call_sid?.slice(0, 18)} />
                         </div>
 
                         {/* AI Summary */}

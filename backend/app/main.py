@@ -4,7 +4,7 @@ FastAPI Application Entry Point (v3.0.0)
 
 Architecture:
   - Groq (llama-3.3-70b) for all LLM reasoning
-  - VAPI for outbound AI voice calling
+  - Twilio for outbound voice calling (TwiML AI conversation loop)
   - Railway PostgreSQL via asyncpg + SQLAlchemy 2.x
 """
 import logging
@@ -22,7 +22,7 @@ from app.config import get_settings
 from app.db.database import engine, Base
 # Import models so Base.metadata is populated before create_all
 from app.db import models  # noqa: F401
-from app.routes import leads, queue, calls, vapi
+from app.routes import leads, queue, calls, twilio
 
 # ──────────────────────────────────────────────
 #  Logging
@@ -68,7 +68,7 @@ app = FastAPI(
     title="AllAgent — Outbound AI Sales Calling Platform",
     description=(
         "Operator dashboard for AI-powered outbound insurance sales calls. "
-        "Uses Groq (llama-3.3-70b) for reasoning and VAPI for voice calls. "
+        "Uses Groq (llama-3.3-70b) for reasoning and Twilio for voice calls. "
         "Backed by Railway PostgreSQL."
     ),
     version="3.0.0",
@@ -93,7 +93,7 @@ app.add_middleware(
 app.include_router(leads.router,   prefix="/api")
 app.include_router(queue.router,   prefix="/api")
 app.include_router(calls.router,   prefix="/api")
-app.include_router(vapi.router,    prefix="/api")
+app.include_router(twilio.router,  prefix="/api")
 
 
 # ──────────────────────────────────────────────

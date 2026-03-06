@@ -82,8 +82,8 @@ class CallSession(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
 
-    # VAPI's call ID — used to de-duplicate webhook retries
-    vapi_call_id = Column(String(255), unique=True, index=True, nullable=True)
+    # Twilio CallSid — used to de-duplicate status callbacks
+    call_sid = Column(String(255), unique=True, index=True, nullable=True)
 
     # FK → leads
     lead_id = Column(
@@ -95,7 +95,7 @@ class CallSession(Base):
 
     transcript     = Column(Text, nullable=False, default="")
     structured_data = Column(JSONB, nullable=True, default=dict)  # LLM-extracted fields
-    call_duration  = Column(Integer, nullable=True)               # seconds, from VAPI
+    call_duration  = Column(Integer, nullable=True)               # seconds
 
     timestamp = Column(
         DateTime(timezone=True),
