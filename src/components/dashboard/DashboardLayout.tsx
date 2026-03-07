@@ -1,12 +1,10 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
     LayoutDashboard,
     Users,
     PhoneCall,
     ListOrdered,
-    ChevronLeft,
-    ChevronRight,
     Zap,
 } from "lucide-react";
 
@@ -25,15 +23,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const [collapsed, setCollapsed] = useState(() => {
-        try { return localStorage.getItem("sidebarCollapsed") === "true"; }
-        catch { return false; }
-    });
-
-    useEffect(() => {
-        localStorage.setItem("sidebarCollapsed", String(collapsed));
-    }, [collapsed]);
-
     const activeId = NAV_ITEMS.find(n => location.pathname.startsWith(n.path))?.id ?? "dashboard";
 
     return (
@@ -41,7 +30,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
             {/* ── Sidebar ────────────────────────────────────────────────── */}
             <aside style={{
-                width: collapsed ? 56 : 216,
+                width: 216,
                 flexShrink: 0,
                 background: "var(--sidebar-bg)",
                 borderRight: "1px solid var(--sidebar-border)",
@@ -51,7 +40,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 top: 0,
                 height: "100vh",
                 overflow: "hidden",
-                transition: "width 0.2s cubic-bezier(0.4,0,0.2,1)",
                 zIndex: 40,
             }}>
 
@@ -80,29 +68,26 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                     }}>
                         <Zap size={14} color="#fff" fill="#fff" />
                     </div>
-
-                    {!collapsed && (
-                        <div style={{ overflow: "hidden" }}>
-                            <div style={{
-                                color: "#fff",
-                                fontWeight: 600,
-                                fontSize: 13,
-                                lineHeight: 1,
-                                letterSpacing: "-0.01em",
-                                whiteSpace: "nowrap",
-                            }}>
-                                allAgent
-                            </div>
-                            <div style={{
-                                color: "rgba(255,255,255,0.35)",
-                                fontSize: 10,
-                                marginTop: 2,
-                                whiteSpace: "nowrap",
-                            }}>
-                                Outbound AI Platform
-                            </div>
+                    <div style={{ overflow: "hidden" }}>
+                        <div style={{
+                            color: "#fff",
+                            fontWeight: 600,
+                            fontSize: 13,
+                            lineHeight: 1,
+                            letterSpacing: "-0.01em",
+                            whiteSpace: "nowrap",
+                        }}>
+                            allAgent
                         </div>
-                    )}
+                        <div style={{
+                            color: "rgba(255,255,255,0.35)",
+                            fontSize: 10,
+                            marginTop: 2,
+                            whiteSpace: "nowrap",
+                        }}>
+                            Outbound AI Platform
+                        </div>
+                    </div>
                 </div>
 
                 {/* Nav */}
@@ -114,14 +99,13 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                                 key={id}
                                 id={`nav-${id}`}
                                 onClick={() => navigate(path)}
-                                title={collapsed ? label : undefined}
                                 style={{
                                     width: "100%",
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 9,
-                                    justifyContent: collapsed ? "center" : "flex-start",
-                                    padding: collapsed ? "8px 0" : "7px 10px",
+                                    justifyContent: "flex-start",
+                                    padding: "7px 10px",
                                     borderRadius: "var(--r-md)",
                                     border: "none",
                                     cursor: "pointer",
@@ -142,72 +126,37 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                                 }}
                             >
                                 <Icon size={16} style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7 }} />
-                                {!collapsed && <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>}
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
                             </button>
                         );
                     })}
                 </nav>
 
-                {/* Footer — collapse toggle + status */}
+                {/* Footer — status */}
                 <div style={{
                     padding: "8px 6px",
                     borderTop: "1px solid var(--sidebar-border)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
                 }}>
-                    {/* Online indicator */}
-                    {!collapsed && (
-                        <div style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 7,
-                            padding: "6px 10px",
-                            borderRadius: "var(--r-md)",
-                        }}>
-                            <span style={{
-                                display: "block",
-                                width: 6,
-                                height: 6,
-                                borderRadius: "50%",
-                                background: "#22c55e",
-                                animation: "statusPulse 2.5s ease-in-out infinite",
-                                flexShrink: 0,
-                            }} />
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-                                Operator Console
-                            </span>
-                        </div>
-                    )}
-
-                    {/* Collapse button */}
-                    <button
-                        onClick={() => setCollapsed(!collapsed)}
-                        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            width: "100%",
-                            padding: "7px",
-                            borderRadius: "var(--r-md)",
-                            border: "none",
-                            cursor: "pointer",
-                            background: "transparent",
-                            color: "rgba(255,255,255,0.3)",
-                            transition: "background var(--t-fast), color var(--t-fast)",
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                            e.currentTarget.style.color = "rgba(255,255,255,0.6)";
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.background = "transparent";
-                            e.currentTarget.style.color = "rgba(255,255,255,0.3)";
-                        }}
-                    >
-                        {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-                    </button>
+                    <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 7,
+                        padding: "6px 10px",
+                        borderRadius: "var(--r-md)",
+                    }}>
+                        <span style={{
+                            display: "block",
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            background: "#22c55e",
+                            animation: "statusPulse 2.5s ease-in-out infinite",
+                            flexShrink: 0,
+                        }} />
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+                            Operator Console
+                        </span>
+                    </div>
                 </div>
             </aside>
 

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { queueApi, callsApi, leadsApi, type QueueStats, type CallSession, type Lead } from "@/lib/api";
 import {
-    PhoneCall, Users, CheckCircle, Clock, TrendingUp, Play,
+    PhoneCall, Users, CheckCircle, Clock, ListOrdered, Play,
     ArrowRight, Phone, RefreshCw, AlertCircle, XCircle
 } from "lucide-react";
 
@@ -169,7 +169,7 @@ export const DashboardPage = () => {
     };
 
     const statCards = [
-        { label: "Total Queue", value: stats?.total ?? 0, icon: TrendingUp, color: "var(--accent)", bg: "var(--accent-subtle)" },
+        { label: "Total Queue", value: stats?.total ?? 0, icon: ListOrdered, color: "var(--accent)", bg: "var(--accent-subtle)" },
         { label: "Pending", value: stats?.pending ?? 0, icon: Clock, color: "var(--status-amber)", bg: "var(--status-amber-bg)", trend: "Ready to dial" },
         { label: "Active Calls", value: stats?.calling ?? 0, icon: Phone, color: "var(--status-cyan)", bg: "var(--status-cyan-bg)", trend: "In progress" },
         { label: "Completed", value: stats?.completed ?? 0, icon: CheckCircle, color: "var(--status-green)", bg: "var(--status-green-bg)" },

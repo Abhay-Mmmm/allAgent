@@ -6,16 +6,12 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { LeadsPage } from "@/pages/LeadsPage";
 import { LeadDetailPage } from "@/pages/LeadDetailPage";
-import { QueuePage } from "@/pages/QueuePage";
 import { CallsPage } from "@/pages/CallsPage";
 import { CallDetailPage } from "@/pages/CallDetailPage";
+import { QueuePage } from "@/pages/QueuePage";
 import NotFound from "@/pages/NotFound";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: 1, staleTime: 30_000 },
-  },
-});
+const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -28,9 +24,9 @@ const App = () => (
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/leads" element={<LeadsPage />} />
           <Route path="/leads/:id" element={<LeadDetailPage />} />
-          <Route path="/queue" element={<QueuePage />} />
           <Route path="/calls" element={<CallsPage />} />
           <Route path="/calls/:id" element={<CallDetailPage />} />
+          <Route path="/queue" element={<QueuePage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

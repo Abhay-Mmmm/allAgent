@@ -41,11 +41,30 @@ def _create_engine():
     safe_url = db_url.split("@")[-1] if "@" in db_url else db_url
     logger.info(f"Connecting to database: @{safe_url}")
 
+    # Determine SSL setting from original URL
+    needs_ssl = "sslmode=require" in settings.database_url
+
+    # Strip sslmode from URL — asyncpg does not support it as a query param
+    if "sslmode=" in db_url:
+        from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+        parsed = urlparse(db_url)
+        params = parse_qs(parsed.query)
+        params.pop("sslmode", None)
+        clean_query = urlencode(params, doseq=True)
+        db_url = urlunparse(parsed._replace(query=clean_query))
+
     engine_kwargs = dict(
         echo=not settings.is_production,   # SQL query logging in dev
         pool_pre_ping=True,                # Detect stale connections
         pool_recycle=300,                  # Recycle connections every 5 min
     )
+
+    if needs_ssl:
+        import ssl as _ssl
+        ssl_ctx = _ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = _ssl.CERT_NONE
+        engine_kwargs["connect_args"] = {"ssl": ssl_ctx}
 
     if settings.is_production:
         # Railway manages PgBouncer / external pooling — use NullPool

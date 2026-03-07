@@ -31,7 +31,7 @@ settings = get_settings()
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    stream=sys.stdout,
+    stream=open(sys.stdout.fileno(), mode="w", encoding="utf-8", buffering=1),
 )
 logger = logging.getLogger(__name__)
 
@@ -42,13 +42,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting AllAgent Outbound Calling Platform — connecting to PostgreSQL...")
+    logger.info("Starting AllAgent Outbound Calling Platform - connecting to PostgreSQL...")
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        logger.info("✅ Database connected and schema is up-to-date.")
+        logger.info("[OK] Database connected and schema is up-to-date.")
     except Exception as e:
-        logger.critical(f"❌ Database connection failed on startup: {e}")
+        logger.critical(f"[ERROR] Database connection failed on startup: {e}")
         logger.critical("Verify DATABASE_URL is set correctly in .env / Railway.")
         if settings.is_production:
             sys.exit(1)
