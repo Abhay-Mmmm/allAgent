@@ -147,6 +147,13 @@ export const DashboardPage = () => {
 
     useEffect(() => { fetchData(); }, []);
 
+    // Auto-refresh every 8s while calls are in-flight
+    useEffect(() => {
+        if (!stats || stats.calling === 0) return;
+        const id = setInterval(fetchData, 8_000);
+        return () => clearInterval(id);
+    }, [stats?.calling]);
+
     const handleStartCampaign = async () => {
         setCampaignLoading(true);
         setCampaignMessage("");
@@ -169,11 +176,12 @@ export const DashboardPage = () => {
     };
 
     const statCards = [
-        { label: "Total Queue", value: stats?.total ?? 0, icon: ListOrdered, color: "var(--accent)", bg: "var(--accent-subtle)" },
-        { label: "Pending", value: stats?.pending ?? 0, icon: Clock, color: "var(--status-amber)", bg: "var(--status-amber-bg)", trend: "Ready to dial" },
-        { label: "Active Calls", value: stats?.calling ?? 0, icon: Phone, color: "var(--status-cyan)", bg: "var(--status-cyan-bg)", trend: "In progress" },
-        { label: "Completed", value: stats?.completed ?? 0, icon: CheckCircle, color: "var(--status-green)", bg: "var(--status-green-bg)" },
-        { label: "Failed", value: stats?.failed ?? 0, icon: XCircle, color: "var(--status-red)", bg: "var(--status-red-bg)" },
+        { label: "Total Queue",  value: stats?.total     ?? 0, icon: ListOrdered, color: "var(--accent)",        bg: "var(--accent-subtle)" },
+        { label: "Pending",      value: stats?.pending   ?? 0, icon: Clock,        color: "var(--status-amber)",  bg: "var(--status-amber-bg)", trend: "Ready to dial" },
+        { label: "Active Calls", value: stats?.calling   ?? 0, icon: Phone,        color: "var(--status-cyan)",   bg: "var(--status-cyan-bg)",  trend: "In progress" },
+        { label: "Completed",    value: stats?.completed ?? 0, icon: CheckCircle,  color: "var(--status-green)",  bg: "var(--status-green-bg)" },
+        { label: "No Answer",    value: stats?.no_answer ?? 0, icon: AlertCircle,  color: "var(--status-amber)",  bg: "var(--status-amber-bg)" },
+        { label: "Failed",       value: stats?.failed    ?? 0, icon: XCircle,      color: "var(--status-red)",    bg: "var(--status-red-bg)" },
     ];
 
     return (
@@ -219,7 +227,7 @@ export const DashboardPage = () => {
                 )}
 
                 {/* ── Stat Cards ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 24 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12, marginBottom: 24 }}>
                     {loading
                         ? statCards.map((_, i) => <div key={i} className="card skeleton" style={{ height: 100 }} />)
                         : statCards.map(card => <StatCard key={card.label} {...card} />)
@@ -239,15 +247,29 @@ export const DashboardPage = () => {
                                 <p className="empty-state-title">No calls yet</p>
                                 <p className="empty-state-desc">Start a campaign to begin calling leads.</p>
                             </div>
-                        ) : recentCalls.map(call => (
-                            <ListRow
-                                key={call.id}
-                                primary={call.structured_data?.name ?? "Unknown Lead"}
-                                secondary={new Date(call.timestamp).toLocaleString()}
-                                meta={formatDuration(call.call_duration)}
-                                onClick={() => navigate(`/calls/${call.id}`)}
-                            />
-                        ))}
+                        ) : recentCalls.map(call => {
+                            const cs = call.call_status;
+                            const badgeCfg: Record<string, { color: string; bg: string; label: string }> = {
+                                completed: { color: "var(--status-green)",  bg: "var(--status-green-bg)",  label: "Answered" },
+                                no_answer: { color: "var(--status-amber)",  bg: "var(--status-amber-bg)",  label: "No answer" },
+                                busy:      { color: "var(--status-amber)",  bg: "var(--status-amber-bg)",  label: "Busy" },
+                                failed:    { color: "var(--status-red)",    bg: "var(--status-red-bg)",    label: "Failed" },
+                                canceled:  { color: "var(--status-red)",    bg: "var(--status-red-bg)",    label: "Canceled" },
+                            };
+                            const bc = cs ? badgeCfg[cs] : null;
+                            return (
+                                <ListRow
+                                    key={call.id}
+                                    primary={call.structured_data?.name ?? "Unknown Lead"}
+                                    secondary={new Date(call.timestamp).toLocaleString()}
+                                    meta={formatDuration(call.call_duration)}
+                                    badge={bc?.label}
+                                    badgeColor={bc?.color}
+                                    badgeBg={bc?.bg}
+                                    onClick={() => navigate(`/calls/${call.id}`)}
+                                />
+                            );
+                        })}
                     </SectionCard>
 
                     {/* Recent Leads */}

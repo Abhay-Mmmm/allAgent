@@ -45,12 +45,16 @@ async def add_to_queue(
     payload: AddToQueueRequest,
     db:      AsyncSession = Depends(get_db),
 ):
-    """Add phone numbers to the outbound calling queue."""
-    created = await QueueManager.add_to_queue(db, payload.phone_numbers)
+    """Add phone numbers (with optional names) to the outbound calling queue."""
+    entries = payload.get_entries()
+    if not entries:
+        raise HTTPException(status_code=400, detail="At least one phone number is required")
+
+    created = await QueueManager.add_to_queue(db, entries)
     return {
         "message": f"Added {len(created)} numbers to the queue",
         "added":   len(created),
-        "skipped": len(payload.phone_numbers) - len(created),
+        "skipped": len(entries) - len(created),
     }
 
 
@@ -106,8 +110,24 @@ async def get_queue(
     stats = await QueueManager.get_queue_stats(db)
 
     from app.schemas.schemas import QueueItemResponse
+
+    # Map phone → lead name for display
+    phones = [i.phone_number for i in items]
+    lead_rows = []
+    if phones:
+        from app.db.models import Lead
+        lead_result = await db.execute(select(Lead).where(Lead.phone_number.in_(phones)))
+        lead_rows = lead_result.scalars().all()
+    name_map = {l.phone_number: l.name for l in lead_rows}
+
+    item_responses = []
+    for i in items:
+        resp = QueueItemResponse.model_validate(i)
+        resp.lead_name = name_map.get(i.phone_number)
+        item_responses.append(resp)
+
     return QueueListResponse(
-        items=[QueueItemResponse.model_validate(i) for i in items],
+        items=item_responses,
         stats=QueueStatsResponse(**stats),
         total=total,
         page=page,

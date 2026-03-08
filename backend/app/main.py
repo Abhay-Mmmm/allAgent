@@ -11,12 +11,13 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 
+from pathlib import Path
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv, find_dotenv
 
-# Load .env before importing anything that reads settings
-load_dotenv(find_dotenv(usecwd=False, raise_error_if_not_found=False))
+# Single load from root .env — must run before any app module is imported
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 from app.config import get_settings
 from app.db.database import engine, Base

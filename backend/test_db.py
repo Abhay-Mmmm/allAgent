@@ -18,8 +18,9 @@ import sys
 import uuid
 from datetime import datetime, timezone
 
-from dotenv import load_dotenv, find_dotenv
-load_dotenv(find_dotenv(usecwd=False, raise_error_if_not_found=False))
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker

@@ -17,8 +17,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from alembic import context
 
 # ── Load environment before importing app modules ────────────────────────
-from dotenv import load_dotenv, find_dotenv
-load_dotenv(find_dotenv(usecwd=False, raise_error_if_not_found=False))
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 # ── Import app config and all models (registers metadata) ────────────────
 from app.config import get_settings

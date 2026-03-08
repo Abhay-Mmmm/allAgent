@@ -289,10 +289,14 @@ async def twilio_status(
     history = _conversation_history.pop(CallSid or "", [])
 
     # ── Map Twilio status → queue status ────────────────────────────────────
-    if CallStatus == "completed":
-        queue_status = "completed"
-    else:
-        queue_status = "failed"
+    _status_map = {
+        "completed": "completed",
+        "no-answer": "no_answer",
+        "busy":      "no_answer",
+        "canceled":  "failed",
+        "failed":    "failed",
+    }
+    queue_status = _status_map.get(CallStatus, "failed")
 
     phone = To
     duration = int(CallDuration or 0)
@@ -310,9 +314,10 @@ async def twilio_status(
             .values(status=queue_status)
         )
 
-        # Persist a minimal CallSession (only if the call actually connected)
-        if CallStatus == "completed" and history:
-            # Reconstruct a plain-text transcript from history
+        # Persist a CallSession for completed calls and for no-answers/busy
+        save_session = CallStatus == "completed" or CallStatus in ("no-answer", "busy")
+        if save_session:
+            # Reconstruct a plain-text transcript from history (empty for no-answer/busy)
             transcript_lines = [
                 f"{msg['role'].capitalize()}: {msg['content']}"
                 for msg in history
@@ -341,14 +346,15 @@ async def twilio_status(
                     id=uuid.uuid4(),
                     call_sid=CallSid,
                     lead_id=lead.id,
-                    transcript=transcript_text or "[No speech captured]",
+                    transcript=transcript_text or ("[No answer]" if CallStatus == "no-answer" else "[Busy]" if CallStatus == "busy" else "[No speech captured]"),
                     structured_data={},
                     call_duration=duration,
+                    call_status=queue_status,  # "completed" | "no_answer"
                 )
                 db.add(session)
                 logger.info(
                     f"[twilio/status] Saved CallSession for CallSid={CallSid} "
-                    f"lead={phone} duration={duration}s"
+                    f"lead={phone} status={CallStatus} duration={duration}s"
                 )
 
         await db.commit()

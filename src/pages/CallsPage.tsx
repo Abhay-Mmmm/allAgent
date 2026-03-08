@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { callsApi, type CallSession } from "@/lib/api";
-import { PhoneCall, Clock, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { PhoneCall, Clock, ArrowRight, ChevronLeft, ChevronRight, CheckCircle, PhoneMissed, XCircle } from "lucide-react";
 
 const TH_STYLE = {
     padding: "10px 16px",
@@ -15,6 +15,33 @@ const TH_STYLE = {
     borderBottom: "1px solid var(--border-subtle)",
     background: "var(--surface-page)",
     whiteSpace: "nowrap" as const,
+};
+
+type CallStatus = CallSession["call_status"];
+
+const CALL_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; Icon: any }> = {
+    completed: { label: "Answered",     color: "var(--status-green)", bg: "var(--status-green-bg)", Icon: CheckCircle },
+    no_answer: { label: "Not answered", color: "var(--status-amber)", bg: "var(--status-amber-bg)", Icon: PhoneMissed },
+    busy:      { label: "Busy",         color: "var(--status-amber)", bg: "var(--status-amber-bg)", Icon: PhoneMissed },
+    failed:    { label: "Failed",       color: "var(--status-red)",   bg: "var(--status-red-bg)",   Icon: XCircle },
+    canceled:  { label: "Canceled",     color: "var(--status-red)",   bg: "var(--status-red-bg)",   Icon: XCircle },
+};
+
+const CallStatusBadge = ({ status }: { status: CallStatus }) => {
+    const cfg = CALL_STATUS_CONFIG[status ?? ""] ?? null;
+    if (!cfg) return <span style={{ color: "var(--text-tertiary)", fontSize: 12 }}>—</span>;
+    const { label, color, bg, Icon } = cfg;
+    return (
+        <span style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            fontSize: 11, fontWeight: 600, letterSpacing: "0.03em",
+            padding: "3px 8px", borderRadius: 20,
+            color, background: bg,
+        }}>
+            <Icon size={11} />
+            {label}
+        </span>
+    );
 };
 
 export const CallsPage = () => {
@@ -59,7 +86,7 @@ export const CallsPage = () => {
                     <table className="data-table">
                         <thead>
                             <tr>
-                                {["Date & Time", "Lead Name", "Duration", "Insurance Interest", "Call SID", ""].map(h => (
+                                {["Date & Time", "Lead Name", "Status", "Duration", "Insurance Interest", "Call SID", ""].map(h => (
                                     <th key={h} style={TH_STYLE}>{h}</th>
                                 ))}
                             </tr>
@@ -68,16 +95,16 @@ export const CallsPage = () => {
                             {loading ? (
                                 [0, 1, 2, 3, 4, 5].map(i => (
                                     <tr key={i}>
-                                        {[0, 1, 2, 3, 4, 5].map(j => (
+                                        {[0, 1, 2, 3, 4, 5, 6].map(j => (
                                             <td key={j} style={{ padding: "14px 16px" }}>
-                                                <div className="skeleton" style={{ height: 12, borderRadius: 4, width: j === 0 ? "70%" : j === 5 ? 16 : "50%" }} />
+                                                <div className="skeleton" style={{ height: 12, borderRadius: 4, width: j === 0 ? "70%" : j === 6 ? 16 : "50%" }} />
                                             </td>
                                         ))}
                                     </tr>
                                 ))
                             ) : calls.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6}>
+                                    <td colSpan={7}>
                                         <div className="empty-state">
                                             <div className="empty-state-icon">
                                                 <PhoneCall size={18} color="var(--text-tertiary)" />
@@ -98,6 +125,9 @@ export const CallsPage = () => {
                                     </td>
                                     <td style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)" }}>
                                         {call.structured_data?.name ?? <span style={{ color: "var(--text-tertiary)" }}>Unknown</span>}
+                                    </td>
+                                    <td>
+                                        <CallStatusBadge status={call.call_status} />
                                     </td>
                                     <td>
                                         <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: "var(--text-secondary)" }}>

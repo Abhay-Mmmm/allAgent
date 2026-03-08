@@ -1,16 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { queueApi, type QueueItem, type QueueStats } from "@/lib/api";
+import { queueApi, leadsApi, type QueueItem, type QueueStats } from "@/lib/api";
 import {
-    ListOrdered, Plus, Play, RefreshCw,
+    ListOrdered, Plus, Play, RefreshCw, Upload, Trash2, Pencil, Check, X,
     Clock, CheckCircle, XCircle, Phone, AlertCircle, ChevronLeft, ChevronRight
 } from "lucide-react";
 
-const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: any }> = {
-    pending: { color: "var(--status-amber)", bg: "var(--status-amber-bg)", icon: Clock },
-    calling: { color: "var(--status-cyan)", bg: "var(--status-cyan-bg)", icon: Phone },
-    completed: { color: "var(--status-green)", bg: "var(--status-green-bg)", icon: CheckCircle },
-    failed: { color: "var(--status-red)", bg: "var(--status-red-bg)", icon: XCircle },
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
+    pending:   { label: "Pending",   color: "var(--status-amber)", bg: "var(--status-amber-bg)", icon: Clock },
+    calling:   { label: "Calling",   color: "var(--status-cyan)",  bg: "var(--status-cyan-bg)",  icon: Phone },
+    completed: { label: "Completed", color: "var(--status-green)", bg: "var(--status-green-bg)", icon: CheckCircle },
+    no_answer: { label: "No answer", color: "var(--status-amber)", bg: "var(--status-amber-bg)", icon: AlertCircle },
+    failed:    { label: "Failed",    color: "var(--status-red)",   bg: "var(--status-red-bg)",   icon: XCircle },
 };
 
 const TH_STYLE = {
@@ -35,8 +36,22 @@ export const QueuePage = () => {
     const [loading, setLoading] = useState(true);
     const [campaignLoading, setCampaignLoading] = useState(false);
     const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
-    const [addInput, setAddInput] = useState("");
+
+    // Add form
+    const [addName, setAddName] = useState("");
+    const [addPhone, setAddPhone] = useState("");
     const [adding, setAdding] = useState(false);
+
+    // Inline edit
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editName, setEditName] = useState("");
+    const [editPhone, setEditPhone] = useState("");
+    const [saving, setSaving] = useState(false);
+
+    // CSV import
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [importing, setImporting] = useState(false);
+
     const limit = 50;
 
     const fetchQueue = async () => {
@@ -59,34 +74,108 @@ export const QueuePage = () => {
         return () => clearInterval(interval);
     }, [stats]);
 
-    const handleAddNumbers = async () => {
-        const nums = addInput.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
-        if (nums.length === 0) return;
+    const showMsg = (type: "ok" | "err", text: string) => {
+        setMessage({ type, text });
+        setTimeout(() => setMessage(null), 5000);
+    };
+
+    // ── Add single lead + queue entry ──
+    const handleAddEntry = async () => {
+        const phone = addPhone.trim();
+        if (!phone) return;
         setAdding(true);
-        setMessage(null);
         try {
-            const res = await queueApi.add(nums);
-            setMessage({ type: "ok", text: res.message });
-            setAddInput("");
+            const res = await queueApi.add([{ name: addName.trim() || undefined, phone_number: phone }]);
+            showMsg("ok", res.message);
+            setAddName("");
+            setAddPhone("");
             fetchQueue();
         } catch (e: any) {
-            setMessage({ type: "err", text: e.message });
+            showMsg("err", e.message);
         } finally {
             setAdding(false);
         }
     };
 
+    // ── CSV Import ──
+    const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setImporting(true);
+        try {
+            const res = await leadsApi.importCsv(file);
+            showMsg("ok", res.message);
+            fetchQueue();
+        } catch (err: any) {
+            showMsg("err", err.message);
+        } finally {
+            setImporting(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
+    // ── Start Campaign ──
     const handleStartCampaign = async () => {
         setCampaignLoading(true);
         setMessage(null);
         try {
             const res = await queueApi.startCampaign();
-            setMessage({ type: "ok", text: `Campaign started (ID: ${res.campaign_id.slice(0, 8)}…)` });
+            showMsg("ok", `Campaign started (ID: ${res.campaign_id.slice(0, 8)}…)`);
             setTimeout(fetchQueue, 3000);
         } catch (e: any) {
-            setMessage({ type: "err", text: e.message });
+            showMsg("err", e.message);
         } finally {
             setCampaignLoading(false);
+        }
+    };
+
+    // ── Inline Edit ──
+    const startEdit = (item: QueueItem) => {
+        setEditingId(item.id);
+        setEditName(item.lead_name ?? "");
+        setEditPhone(item.phone_number);
+    };
+
+    const cancelEdit = () => {
+        setEditingId(null);
+        setEditName("");
+        setEditPhone("");
+    };
+
+    const saveEdit = async (item: QueueItem) => {
+        setSaving(true);
+        try {
+            const result = await leadsApi.list(1, 1, undefined, item.phone_number);
+            const lead = result.leads[0];
+            if (lead) {
+                await leadsApi.update(lead.id, {
+                    name: editName.trim() || undefined,
+                    phone_number: editPhone.trim() || undefined,
+                });
+            }
+            showMsg("ok", "Lead updated");
+            cancelEdit();
+            fetchQueue();
+        } catch (e: any) {
+            showMsg("err", e.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // ── Delete ──
+    const handleDelete = async (item: QueueItem) => {
+        if (!confirm(`Delete queue entry for ${item.lead_name || item.phone_number}?`)) return;
+        try {
+            const result = await leadsApi.list(1, 1, undefined, item.phone_number);
+            const lead = result.leads[0];
+            if (lead) {
+                await leadsApi.delete(lead.id);
+            }
+            showMsg("ok", "Entry deleted");
+            fetchQueue();
+        } catch (e: any) {
+            showMsg("err", e.message);
         }
     };
 
@@ -104,18 +193,27 @@ export const QueuePage = () => {
                         <p className="page-subtitle">Manage and launch your outbound calling campaign</p>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                            id="refresh-queue"
-                            onClick={fetchQueue}
-                            disabled={loading}
-                            className="btn btn-secondary"
-                            style={{ gap: 6 }}
-                        >
+                        <button onClick={fetchQueue} disabled={loading} className="btn btn-secondary" style={{ gap: 6 }}>
                             <RefreshCw size={13} />
                             Refresh
                         </button>
                         <button
-                            id="start-campaign-btn"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={importing}
+                            className="btn btn-secondary"
+                            style={{ gap: 6 }}
+                        >
+                            <Upload size={13} />
+                            {importing ? "Importing…" : "Import CSV"}
+                        </button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".csv"
+                            style={{ display: "none" }}
+                            onChange={handleCsvImport}
+                        />
+                        <button
                             onClick={handleStartCampaign}
                             disabled={campaignLoading || pendingCount === 0}
                             className="btn btn-primary"
@@ -133,7 +231,6 @@ export const QueuePage = () => {
                 {/* ── Status Tabs ── */}
                 {stats && (
                     <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-                        {/* All tab */}
                         <button
                             onClick={() => { setStatusFilter(""); setPage(1); }}
                             className="btn"
@@ -154,7 +251,6 @@ export const QueuePage = () => {
                                 {stats.total}
                             </span>
                         </button>
-
                         {Object.entries(STATUS_CONFIG).map(([status, cfg]) => {
                             const count = stats[status as keyof QueueStats] as number;
                             const isActive = statusFilter === status;
@@ -170,11 +266,10 @@ export const QueuePage = () => {
                                         borderColor: isActive ? cfg.color : "var(--border-default)",
                                         boxShadow: "var(--shadow-xs)",
                                         gap: 5,
-                                        textTransform: "capitalize",
                                     }}
                                 >
                                     <Icon size={13} />
-                                    {status}
+                                    {cfg.label}
                                     <span style={{
                                         fontSize: 11, fontWeight: 600, padding: "1px 6px", borderRadius: 99,
                                         background: isActive ? "rgba(0,0,0,0.1)" : "var(--surface-inset)",
@@ -197,44 +292,61 @@ export const QueuePage = () => {
                 )}
 
                 {/* ── Two-column ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16, alignItems: "start" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 16, alignItems: "start" }}>
 
-                    {/* Add Numbers Panel */}
+                    {/* Add Lead Panel */}
                     <div className="card" style={{ overflow: "hidden" }}>
                         <div className="card-header">
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                 <Plus size={14} color="var(--text-tertiary)" />
-                                <span className="card-title">Add Numbers</span>
+                                <span className="card-title">Add Lead</span>
                             </div>
                         </div>
-                        <div style={{ padding: "16px" }}>
-                            <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 10, lineHeight: 1.5 }}>
-                                One number per line or comma-separated:
-                            </p>
-                            <textarea
-                                id="phone-numbers-input"
-                                value={addInput}
-                                onChange={e => setAddInput(e.target.value)}
-                                placeholder={"+91XXXXXXXXXX\n+91YYYYYYYYYY"}
-                                rows={7}
-                                className="field"
-                                style={{
-                                    fontFamily: "'SF Mono', 'Fira Code', monospace",
-                                    fontSize: 12,
-                                    resize: "vertical",
-                                    lineHeight: 1.6,
-                                }}
-                            />
+                        <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" }}>
+                                    Name
+                                </label>
+                                <input
+                                    type="text"
+                                    value={addName}
+                                    onChange={e => setAddName(e.target.value)}
+                                    placeholder="John Doe"
+                                    className="field"
+                                    style={{ fontSize: 13 }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" }}>
+                                    Phone Number
+                                </label>
+                                <input
+                                    type="text"
+                                    value={addPhone}
+                                    onChange={e => setAddPhone(e.target.value)}
+                                    placeholder="+919876543210"
+                                    className="field"
+                                    style={{ fontSize: 13, fontFamily: "'SF Mono', 'Fira Code', monospace" }}
+                                    onKeyDown={e => { if (e.key === "Enter") handleAddEntry(); }}
+                                />
+                            </div>
                             <button
-                                id="add-to-queue-btn"
-                                onClick={handleAddNumbers}
-                                disabled={adding || !addInput.trim()}
+                                onClick={handleAddEntry}
+                                disabled={adding || !addPhone.trim()}
                                 className="btn btn-primary"
-                                style={{ width: "100%", marginTop: 10, justifyContent: "center", padding: "8px" }}
+                                style={{ width: "100%", justifyContent: "center", padding: "8px" }}
                             >
                                 <Plus size={13} />
                                 {adding ? "Adding…" : "Add to Queue"}
                             </button>
+                        </div>
+
+                        {/* CSV info */}
+                        <div style={{ padding: "0 16px 16px", borderTop: "1px solid var(--border-subtle)", marginTop: 4, paddingTop: 12 }}>
+                            <p style={{ fontSize: 11, color: "var(--text-tertiary)", lineHeight: 1.5, margin: 0 }}>
+                                Or use <strong>Import CSV</strong> above with columns:<br />
+                                <code style={{ fontSize: 10, background: "var(--surface-inset)", padding: "1px 4px", borderRadius: 3 }}>name,phone_number</code>
+                            </p>
                         </div>
                     </div>
 
@@ -243,7 +355,7 @@ export const QueuePage = () => {
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    {["Phone Number", "Status", "Attempts", "Added"].map(h => (
+                                    {["Name", "Phone Number", "Status", "Attempts", "Added", "Actions"].map(h => (
                                         <th key={h} style={TH_STYLE}>{h}</th>
                                     ))}
                                 </tr>
@@ -252,41 +364,121 @@ export const QueuePage = () => {
                                 {loading ? (
                                     [0, 1, 2, 3, 4].map(i => (
                                         <tr key={i}>
-                                            {[0, 1, 2, 3].map(j => (
+                                            {[0, 1, 2, 3, 4, 5].map(j => (
                                                 <td key={j} style={{ padding: "14px 16px" }}>
-                                                    <div className="skeleton" style={{ height: 12, borderRadius: 4, width: j === 0 ? "60%" : j === 1 ? "40%" : "25%" }} />
+                                                    <div className="skeleton" style={{ height: 12, borderRadius: 4, width: j === 5 ? "40%" : j === 0 ? "60%" : "50%" }} />
                                                 </td>
                                             ))}
                                         </tr>
                                     ))
                                 ) : items.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4}>
+                                        <td colSpan={6}>
                                             <div className="empty-state">
                                                 <div className="empty-state-icon"><ListOrdered size={18} color="var(--text-tertiary)" /></div>
                                                 <p className="empty-state-title">Queue is empty</p>
-                                                <p className="empty-state-desc">Add phone numbers on the left to get started.</p>
+                                                <p className="empty-state-desc">Add leads on the left or import a CSV to get started.</p>
                                             </div>
                                         </td>
                                     </tr>
                                 ) : items.map(item => {
                                     const cfg = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.pending;
                                     const Icon = cfg.icon;
+                                    const isEditing = editingId === item.id;
+
                                     return (
                                         <tr key={item.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                                            <td style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)", fontFamily: "monospace" }}>
-                                                {item.phone_number}
+                                            {/* Name */}
+                                            <td style={{ padding: "8px 16px" }}>
+                                                {isEditing ? (
+                                                    <input
+                                                        type="text"
+                                                        value={editName}
+                                                        onChange={e => setEditName(e.target.value)}
+                                                        className="field"
+                                                        style={{ fontSize: 12, padding: "4px 8px", width: "100%" }}
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <span style={{ fontWeight: 500, fontSize: 13, color: item.lead_name ? "var(--text-primary)" : "var(--text-tertiary)" }}>
+                                                        {item.lead_name || "—"}
+                                                    </span>
+                                                )}
                                             </td>
+                                            {/* Phone */}
+                                            <td style={{ padding: "8px 16px" }}>
+                                                {isEditing ? (
+                                                    <input
+                                                        type="text"
+                                                        value={editPhone}
+                                                        onChange={e => setEditPhone(e.target.value)}
+                                                        className="field"
+                                                        style={{ fontSize: 12, padding: "4px 8px", width: "100%", fontFamily: "monospace" }}
+                                                    />
+                                                ) : (
+                                                    <span style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)", fontFamily: "monospace" }}>
+                                                        {item.phone_number}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            {/* Status */}
                                             <td>
-                                                <span className="badge" style={{ background: cfg.bg, color: cfg.color, gap: 5, textTransform: "capitalize" }}>
-                                                    <Icon size={11} /> {item.status}
+                                                <span className="badge" style={{ background: cfg.bg, color: cfg.color, gap: 5 }}>
+                                                    <Icon size={11} /> {cfg.label}
                                                 </span>
                                             </td>
+                                            {/* Attempts */}
                                             <td style={{ fontSize: 13, color: "var(--text-tertiary)" }}>
                                                 {item.attempts}
                                             </td>
+                                            {/* Added */}
                                             <td style={{ fontSize: 12, color: "var(--text-tertiary)" }}>
                                                 {new Date(item.created_at).toLocaleString()}
+                                            </td>
+                                            {/* Actions */}
+                                            <td style={{ padding: "8px 12px" }}>
+                                                <div style={{ display: "flex", gap: 4 }}>
+                                                    {isEditing ? (
+                                                        <>
+                                                            <button
+                                                                onClick={() => saveEdit(item)}
+                                                                disabled={saving}
+                                                                className="btn btn-ghost"
+                                                                style={{ padding: "4px 6px", color: "var(--status-green)" }}
+                                                                title="Save"
+                                                            >
+                                                                <Check size={14} />
+                                                            </button>
+                                                            <button
+                                                                onClick={cancelEdit}
+                                                                className="btn btn-ghost"
+                                                                style={{ padding: "4px 6px", color: "var(--text-tertiary)" }}
+                                                                title="Cancel"
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                onClick={() => startEdit(item)}
+                                                                className="btn btn-ghost"
+                                                                style={{ padding: "4px 6px", color: "var(--text-tertiary)" }}
+                                                                title="Edit"
+                                                            >
+                                                                <Pencil size={13} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(item)}
+                                                                className="btn btn-ghost"
+                                                                style={{ padding: "4px 6px", color: "var(--status-red)" }}
+                                                                title="Delete"
+                                                            >
+                                                                <Trash2 size={13} />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     );

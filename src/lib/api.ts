@@ -43,13 +43,15 @@ export interface CallSession {
     transcript: string;
     structured_data: Record<string, any> | null;
     call_duration: number | null;
+    call_status: "completed" | "no_answer" | "busy" | "failed" | "canceled" | null;
     timestamp: string;
 }
 
 export interface QueueItem {
     id: string;
     phone_number: string;
-    status: "pending" | "calling" | "completed" | "failed";
+    lead_name: string | null;
+    status: "pending" | "calling" | "completed" | "no_answer" | "failed";
     attempts: number;
     created_at: string;
     updated_at: string;
@@ -59,6 +61,7 @@ export interface QueueStats {
     pending: number;
     calling: number;
     completed: number;
+    no_answer: number;
     failed: number;
     total: number;
 }
@@ -88,16 +91,34 @@ export interface PaginatedQueue {
 // ── Leads API ─────────────────────────────────────────────────────────────────
 
 export const leadsApi = {
-    list: (page = 1, limit = 20, status?: string): Promise<PaginatedLeads> => {
+    list: (page = 1, limit = 20, status?: string, phone?: string): Promise<PaginatedLeads> => {
         const params = new URLSearchParams({ page: String(page), limit: String(limit) });
         if (status) params.set("status", status);
+        if (phone) params.set("phone", phone);
         return request(`/leads?${params}`);
     },
 
     get: (id: string): Promise<{ lead: Lead; call_sessions: CallSession[]; total_calls: number }> =>
         request(`/leads/${id}`),
 
-    importCsv: (file: File): Promise<{ imported: number; skipped: number; errors: number; message: string }> => {
+    create: (data: { name?: string; phone_number: string }): Promise<Lead> =>
+        request("/leads", {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
+    update: (id: string, data: { name?: string; phone_number?: string }): Promise<Lead> =>
+        request(`/leads/${id}`, {
+            method: "PUT",
+            body: JSON.stringify(data),
+        }),
+
+    delete: (id: string): Promise<void> =>
+        fetch(`${BASE_URL}/leads/${id}`, { method: "DELETE" }).then(res => {
+            if (!res.ok) throw new Error("Failed to delete lead");
+        }),
+
+    importCsv: (file: File): Promise<{ imported: number; updated: number; skipped: number; errors: number; message: string }> => {
         const formData = new FormData();
         formData.append("file", file);
         return request("/leads/import", {
@@ -119,10 +140,10 @@ export const queueApi = {
 
     stats: (): Promise<QueueStats> => request("/queue/stats"),
 
-    add: (phone_numbers: string[]): Promise<{ message: string; added: number; skipped: number }> =>
+    add: (entries: { name?: string; phone_number: string }[]): Promise<{ message: string; added: number; skipped: number }> =>
         request("/queue/add", {
             method: "POST",
-            body: JSON.stringify({ phone_numbers }),
+            body: JSON.stringify({ entries }),
         }),
 
     startCampaign: (): Promise<{ campaign_id: string; status: string; message: string }> =>

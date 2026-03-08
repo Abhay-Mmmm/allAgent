@@ -70,16 +70,20 @@ class QueueManager:
     @staticmethod
     async def add_to_queue(
         db: AsyncSession,
-        phone_numbers: List[str],
+        entries,
     ) -> List[CallQueue]:
         """
-        Insert new phone numbers into the call queue (status=pending).
+        Insert entries into the call queue (status=pending) and ensure
+        a Lead record exists for each phone number.
+
+        ``entries`` is a list of objects with ``.phone_number`` and optional ``.name``.
         Skips numbers already in queue with status pending or calling.
         Returns list of newly created queue items.
         """
         created = []
-        for phone in phone_numbers:
-            phone = phone.strip()
+        for entry in entries:
+            phone = entry.phone_number.strip() if isinstance(entry.phone_number, str) else str(entry.phone_number).strip()
+            name = getattr(entry, "name", None)
             if not phone:
                 continue
 
@@ -93,6 +97,22 @@ class QueueManager:
             if existing.scalars().first():
                 logger.info(f"[Queue] Skipping {phone} — already in queue")
                 continue
+
+            # Ensure a Lead record exists
+            lead_result = await db.execute(
+                select(Lead).where(Lead.phone_number == phone)
+            )
+            lead = lead_result.scalars().first()
+            if not lead:
+                lead = Lead(
+                    id=uuid.uuid4(),
+                    phone_number=phone,
+                    name=name,
+                    lead_status="new",
+                )
+                db.add(lead)
+            elif name and not lead.name:
+                lead.name = name
 
             item = CallQueue(
                 id=uuid.uuid4(),
@@ -121,6 +141,7 @@ class QueueManager:
             "pending":   stats.get("pending", 0),
             "calling":   stats.get("calling", 0),
             "completed": stats.get("completed", 0),
+            "no_answer": stats.get("no_answer", 0),
             "failed":    stats.get("failed", 0),
             "total":     sum(stats.values()),
         }

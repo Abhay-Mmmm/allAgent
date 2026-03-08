@@ -96,6 +96,7 @@ class CallSession(Base):
     transcript     = Column(Text, nullable=False, default="")
     structured_data = Column(JSONB, nullable=True, default=dict)  # LLM-extracted fields
     call_duration  = Column(Integer, nullable=True)               # seconds
+    call_status    = Column(String(32), nullable=True)            # completed | no_answer | busy | failed | canceled
 
     timestamp = Column(
         DateTime(timezone=True),

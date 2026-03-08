@@ -36,6 +36,7 @@ class LeadCreate(LeadBase):
 
 class LeadUpdate(BaseModel):
     name:               Optional[str] = None
+    phone_number:       Optional[str] = None
     age:                Optional[int] = None
     occupation:         Optional[str] = None
     location:           Optional[str] = None
@@ -69,6 +70,7 @@ class CallSessionResponse(BaseModel):
     transcript:      str
     structured_data: Optional[Dict[str, Any]] = None
     call_duration:   Optional[int] = None
+    call_status:     Optional[str] = None   # completed | no_answer | busy | failed | canceled
     timestamp:       datetime
     model_config = ConfigDict(from_attributes=True)
 
@@ -87,6 +89,7 @@ class CallSessionListResponse(BaseModel):
 class QueueItemResponse(BaseModel):
     id:           UUID
     phone_number: str
+    lead_name:    Optional[str] = None
     status:       str
     attempts:     int
     created_at:   datetime
@@ -98,20 +101,35 @@ class QueueStatsResponse(BaseModel):
     pending:   int
     calling:   int
     completed: int
+    no_answer: int = 0
     failed:    int
     total:     int
 
 
-class AddToQueueRequest(BaseModel):
-    phone_numbers: List[str]
+class QueueEntry(BaseModel):
+    name: Optional[str] = None
+    phone_number: str
 
-    @field_validator("phone_numbers")
+
+class AddToQueueRequest(BaseModel):
+    phone_numbers: Optional[List[str]] = None
+    entries: Optional[List[QueueEntry]] = None
+
+    @field_validator("phone_numbers", mode="before")
     @classmethod
-    def validate_numbers(cls, v: List[str]) -> List[str]:
-        cleaned = [n.strip() for n in v if n.strip()]
-        if not cleaned:
-            raise ValueError("At least one phone number is required")
-        return cleaned
+    def validate_numbers(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is None:
+            return v
+        return [n.strip() for n in v if n.strip()]
+
+    def get_entries(self) -> List[QueueEntry]:
+        """Normalise both input formats into a list of QueueEntry."""
+        result: List[QueueEntry] = []
+        if self.entries:
+            result.extend(self.entries)
+        if self.phone_numbers:
+            result.extend(QueueEntry(phone_number=p) for p in self.phone_numbers)
+        return result
 
 
 class QueueListResponse(BaseModel):
@@ -138,6 +156,7 @@ class CampaignStartResponse(BaseModel):
 
 class ImportResponse(BaseModel):
     imported:  int
+    updated:   int = 0
     skipped:   int
     errors:    int
     message:   str
