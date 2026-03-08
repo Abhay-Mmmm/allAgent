@@ -20,6 +20,7 @@ Queue states:
 import asyncio
 import logging
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 import httpx
@@ -34,7 +35,21 @@ logger = logging.getLogger(__name__)
 
 TWILIO_API_BASE = "https://api.twilio.com/2010-04-01"
 MAX_RETRY_ATTEMPTS = 3
-CALL_INTERVAL_SECONDS = 5  # Wait between consecutive calls to avoid rate limits
+CALL_INTERVAL_SECONDS = 3   # Pause between consecutive calls
+CALL_TIMEOUT_SECONDS = 120  # Max wait for a single call to finish
+STUCK_CALL_MINUTES = 2      # Mark calls in "calling" longer than this as failed
+
+# ── Event system for call-completion signalling ──────────────────────────────
+# The campaign runner waits on these asyncio Events; the Twilio webhook sets them.
+_call_completion_events: dict[str, asyncio.Event] = {}
+_campaign_active = False
+
+
+def notify_call_completed(phone_number: str):
+    """Signal that a call reached a terminal status.  Called by the Twilio webhook."""
+    event = _call_completion_events.get(phone_number)
+    if event:
+        event.set()
 
 
 class QueueManager:
@@ -176,77 +191,136 @@ class QueueManager:
         return {"campaign_id": campaign_id, "status": "started"}
 
     async def _process_queue(self, campaign_id: str):
-        """Background task: process all pending queue items one by one."""
+        """Background task: process pending queue items one-by-one, waiting for each to complete."""
+        global _campaign_active
+        _campaign_active = True
         logger.info(f"[Campaign {campaign_id}] Queue processor started")
         processed = 0
         failed = 0
 
         try:
-            async with SessionLocal() as db:
-                # Fetch all pending items
-                result = await db.execute(
-                    select(CallQueue)
-                    .where(CallQueue.status == "pending")
-                    .where(CallQueue.attempts < MAX_RETRY_ATTEMPTS)
-                    .order_by(CallQueue.created_at.asc())
-                )
-                items = result.scalars().all()
+            # Recover calls stuck from a previous run
+            await self._recover_stuck_calls()
 
-            logger.info(f"[Campaign {campaign_id}] Found {len(items)} pending items")
+            while True:
+                # Fetch ONE pending item fresh from DB each iteration
+                async with SessionLocal() as db:
+                    result = await db.execute(
+                        select(CallQueue)
+                        .where(CallQueue.status == "pending")
+                        .where(CallQueue.attempts < MAX_RETRY_ATTEMPTS)
+                        .order_by(CallQueue.created_at.asc())
+                        .limit(1)
+                    )
+                    item = result.scalars().first()
+                    if not item:
+                        logger.info(f"[Campaign {campaign_id}] No more pending items")
+                        break
+                    # Snapshot values — object is detached once session closes
+                    item_id = item.id
+                    item_phone = item.phone_number
 
-            for item in items:
+                logger.info(f"[Campaign {campaign_id}] Processing {item_phone}")
+
+                # Register a completion event so the webhook can wake us up
+                event = asyncio.Event()
+                _call_completion_events[item_phone] = event
+
                 try:
-                    success = await self._call_number(item)
-                    if success:
+                    success = await self._initiate_call(item_id, item_phone)
+                    if not success:
+                        failed += 1
+                        await asyncio.sleep(CALL_INTERVAL_SECONDS)
+                        continue
+
+                    # ── Wait for the Twilio status webhook to fire ───────────
+                    try:
+                        await asyncio.wait_for(event.wait(), timeout=CALL_TIMEOUT_SECONDS)
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            f"[Campaign {campaign_id}] Timeout for {item_phone} "
+                            f"after {CALL_TIMEOUT_SECONDS}s — marking failed"
+                        )
+                        async with SessionLocal() as db:
+                            await db.execute(
+                                update(CallQueue)
+                                .where(CallQueue.id == item_id)
+                                .where(CallQueue.status == "calling")
+                                .values(status="failed")
+                            )
+                            await db.commit()
+                        failed += 1
+                        await asyncio.sleep(CALL_INTERVAL_SECONDS)
+                        continue
+
+                    # Read final status written by the webhook
+                    async with SessionLocal() as db:
+                        result = await db.execute(
+                            select(CallQueue.status).where(CallQueue.id == item_id)
+                        )
+                        final_status = result.scalar()
+
+                    if final_status == "completed":
                         processed += 1
                     else:
                         failed += 1
+
                     await asyncio.sleep(CALL_INTERVAL_SECONDS)
+
                 except Exception as e:
                     logger.error(
-                        f"[Campaign {campaign_id}] Error processing {item.phone_number}: {e}",
+                        f"[Campaign {campaign_id}] Error processing {item_phone}: {e}",
                         exc_info=True,
                     )
                     failed += 1
+                finally:
+                    _call_completion_events.pop(item_phone, None)
 
         except Exception as e:
             logger.error(f"[Campaign {campaign_id}] Fatal error: {e}", exc_info=True)
+        finally:
+            _campaign_active = False
 
         logger.info(
             f"[Campaign {campaign_id}] Finished — processed={processed} failed={failed}"
         )
 
-    async def _call_number(self, item: CallQueue) -> bool:
+    async def _initiate_call(self, item_id, phone_number: str) -> bool:
         """
-        Trigger a single Twilio outbound call for a queue item.
-        Updates DB status throughout the lifecycle.
-        Returns True if call was successfully initiated.
+        Atomically claim a queue item and trigger a Twilio outbound call.
+        Returns True if the call was successfully initiated.
         """
         async with SessionLocal() as db:
-            # Mark as calling + increment attempts
-            await db.execute(
+            # Atomically claim: only succeeds if still pending
+            result = await db.execute(
                 update(CallQueue)
-                .where(CallQueue.id == item.id)
+                .where(CallQueue.id == item_id)
+                .where(CallQueue.status == "pending")
                 .values(status="calling", attempts=CallQueue.attempts + 1)
             )
             await db.commit()
 
-            # Ensure lead exists
-            await self._get_or_create_lead(db, item.phone_number)
+            if result.rowcount == 0:
+                logger.warning(f"[Queue] Could not claim {phone_number} — not pending")
+                return False
+
+            await self._get_or_create_lead(db, phone_number)
 
         try:
-            call_sid = await self._trigger_twilio_call(item.phone_number)
-            logger.info(f"[Queue] Initiated Twilio call {call_sid} for {item.phone_number}")
-            # Status stays "calling" — /twilio/status webhook will update it
+            call_sid = await self._trigger_twilio_call(phone_number)
+            logger.info(f"[Queue] Initiated Twilio call {call_sid} for {phone_number}")
             return True
-
         except Exception as e:
-            logger.error(f"[Queue] Twilio call failed for {item.phone_number}: {e}")
+            logger.error(f"[Queue] Twilio call failed for {phone_number}: {e}")
             async with SessionLocal() as db:
-                new_status = "failed" if item.attempts + 1 >= MAX_RETRY_ATTEMPTS else "pending"
+                res = await db.execute(
+                    select(CallQueue.attempts).where(CallQueue.id == item_id)
+                )
+                attempts = res.scalar() or 0
+                new_status = "failed" if attempts >= MAX_RETRY_ATTEMPTS else "pending"
                 await db.execute(
                     update(CallQueue)
-                    .where(CallQueue.id == item.id)
+                    .where(CallQueue.id == item_id)
                     .values(status=new_status)
                 )
                 await db.commit()
@@ -294,6 +368,51 @@ class QueueManager:
             await db.refresh(lead)
             logger.info(f"[Queue] Created new lead for {phone_number}")
         return lead
+
+    @staticmethod
+    async def _recover_stuck_calls():
+        """Mark calls stuck in 'calling' for longer than STUCK_CALL_MINUTES as failed."""
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=STUCK_CALL_MINUTES)
+        async with SessionLocal() as db:
+            result = await db.execute(
+                update(CallQueue)
+                .where(CallQueue.status == "calling")
+                .where(CallQueue.updated_at < cutoff)
+                .values(status="failed")
+            )
+            await db.commit()
+            if result.rowcount > 0:
+                logger.warning(f"[Queue] Recovered {result.rowcount} stuck calls → failed")
+
+    @staticmethod
+    async def process_next_item():
+        """
+        Process the next pending queue item (single shot).
+        Called from the Twilio webhook when no campaign is actively running.
+        """
+        if _campaign_active:
+            return  # Campaign runner handles advancement
+
+        try:
+            manager = QueueManager()
+        except ValueError:
+            return  # Twilio not configured
+
+        async with SessionLocal() as db:
+            result = await db.execute(
+                select(CallQueue)
+                .where(CallQueue.status == "pending")
+                .where(CallQueue.attempts < MAX_RETRY_ATTEMPTS)
+                .order_by(CallQueue.created_at.asc())
+                .limit(1)
+            )
+            item = result.scalars().first()
+            if not item:
+                return
+            item_id = item.id
+            item_phone = item.phone_number
+
+        await manager._initiate_call(item_id, item_phone)
 
     @staticmethod
     def _build_lead_context(lead: Lead) -> dict:

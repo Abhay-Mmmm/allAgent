@@ -1,7 +1,7 @@
 // ── Centralised API client for the Outbound AI Calling Platform ──────────────
 // All requests go through this module. Base URL is read from VITE_API_BASE_URL.
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 async function request<T>(
     path: string,
@@ -15,6 +15,10 @@ async function request<T>(
     if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: response.statusText }));
         throw new Error((error as any).detail || `API error ${response.status}`);
+    }
+
+    if (response.status === 204 || response.headers.get("content-length") === "0") {
+        return undefined as unknown as T;
     }
 
     return response.json() as Promise<T>;
@@ -114,9 +118,7 @@ export const leadsApi = {
         }),
 
     delete: (id: string): Promise<void> =>
-        fetch(`${BASE_URL}/leads/${id}`, { method: "DELETE" }).then(res => {
-            if (!res.ok) throw new Error("Failed to delete lead");
-        }),
+        request(`/leads/${id}`, { method: "DELETE" }),
 
     importCsv: (file: File): Promise<{ imported: number; updated: number; skipped: number; errors: number; message: string }> => {
         const formData = new FormData();

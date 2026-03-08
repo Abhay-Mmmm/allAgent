@@ -199,7 +199,8 @@ async def delete_lead(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
 
-    await db.delete(lead)
+    await db.execute(sa_delete(CallSession).where(CallSession.lead_id == lead.id))
+    await db.execute(sa_delete(Lead).where(Lead.id == uid))
     await db.commit()
 
 

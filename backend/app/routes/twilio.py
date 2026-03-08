@@ -17,6 +17,7 @@ Endpoints:
   POST /twilio/status         — Call status updates (completed, failed, etc.)
 """
 
+import asyncio
 import logging
 import uuid
 from typing import Optional
@@ -292,7 +293,7 @@ async def twilio_status(
     _status_map = {
         "completed": "completed",
         "no-answer": "no_answer",
-        "busy":      "no_answer",
+        "busy":      "failed",
         "canceled":  "failed",
         "failed":    "failed",
     }
@@ -314,8 +315,8 @@ async def twilio_status(
             .values(status=queue_status)
         )
 
-        # Persist a CallSession for completed calls and for no-answers/busy
-        save_session = CallStatus == "completed" or CallStatus in ("no-answer", "busy")
+        # Persist a CallSession for every terminal outcome
+        save_session = True
         if save_session:
             # Reconstruct a plain-text transcript from history (empty for no-answer/busy)
             transcript_lines = [
@@ -346,7 +347,12 @@ async def twilio_status(
                     id=uuid.uuid4(),
                     call_sid=CallSid,
                     lead_id=lead.id,
-                    transcript=transcript_text or ("[No answer]" if CallStatus == "no-answer" else "[Busy]" if CallStatus == "busy" else "[No speech captured]"),
+                    transcript=transcript_text or {
+                        "no-answer": "[No answer]",
+                        "busy":      "[Busy]",
+                        "failed":    "[Call failed]",
+                        "canceled":  "[Call canceled]",
+                    }.get(CallStatus, "[No speech captured]"),
                     structured_data={},
                     call_duration=duration,
                     call_status=queue_status,  # "completed" | "no_answer"
@@ -358,6 +364,11 @@ async def twilio_status(
                 )
 
         await db.commit()
+
+        # ── Signal campaign runner / trigger next item ────────────────────
+        from app.services.queue_manager import notify_call_completed, QueueManager
+        notify_call_completed(phone)
+        asyncio.create_task(QueueManager.process_next_item())
 
     except Exception as exc:
         logger.error(f"[twilio/status] DB update failed: {exc}", exc_info=True)

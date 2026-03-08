@@ -55,7 +55,6 @@ export const QueuePage = () => {
     const limit = 50;
 
     const fetchQueue = async () => {
-        setLoading(true);
         try {
             const data = await queueApi.list(page, limit, statusFilter || undefined);
             setItems(data.items);
@@ -67,12 +66,13 @@ export const QueuePage = () => {
 
     useEffect(() => { fetchQueue(); }, [page, statusFilter]);
 
-    // Auto-refresh every 10s when there are active calls
+    // Auto-refresh: fast (3s) when calls active, slower (8s) when pending only
     useEffect(() => {
-        if (!stats || stats.calling === 0) return;
-        const interval = setInterval(fetchQueue, 10_000);
+        if (!stats || (stats.calling === 0 && stats.pending === 0)) return;
+        const ms = stats.calling > 0 ? 3_000 : 8_000;
+        const interval = setInterval(fetchQueue, ms);
         return () => clearInterval(interval);
-    }, [stats]);
+    }, [stats, page, statusFilter]);
 
     const showMsg = (type: "ok" | "err", text: string) => {
         setMessage({ type, text });

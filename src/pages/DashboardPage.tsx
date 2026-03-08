@@ -128,7 +128,6 @@ export const DashboardPage = () => {
     const [campaignMessage, setCampaignMessage] = useState("");
 
     const fetchData = async () => {
-        setLoading(true);
         try {
             const [qStats, callsData, leadsData] = await Promise.all([
                 queueApi.stats(),
@@ -147,12 +146,13 @@ export const DashboardPage = () => {
 
     useEffect(() => { fetchData(); }, []);
 
-    // Auto-refresh every 8s while calls are in-flight
+    // Auto-refresh: fast when calling, slower when only pending
     useEffect(() => {
-        if (!stats || stats.calling === 0) return;
-        const id = setInterval(fetchData, 8_000);
+        if (!stats || (stats.calling === 0 && stats.pending === 0)) return;
+        const ms = stats.calling > 0 ? 4_000 : 10_000;
+        const id = setInterval(fetchData, ms);
         return () => clearInterval(id);
-    }, [stats?.calling]);
+    }, [stats]);
 
     const handleStartCampaign = async () => {
         setCampaignLoading(true);
